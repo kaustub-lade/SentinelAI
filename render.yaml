@@ -1,13 +1,11 @@
 services:
   - type: web
     name: sentinelai-backend
-    env: python
+    runtime: docker
     region: oregon
-    buildCommand: "pip install -r backend/requirements.txt"
-    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
       - key: SECRET_KEY
         generateValue: true
       - key: OPENAI_API_KEY
