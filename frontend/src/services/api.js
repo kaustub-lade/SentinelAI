@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-// Empty default supports same-origin API calls via Vercel rewrites in production.
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+// Default to the Vercel backend service prefix when no absolute API URL is set.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/_/backend'
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,

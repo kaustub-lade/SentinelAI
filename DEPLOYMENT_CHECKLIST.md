@@ -4,50 +4,39 @@
 - [ ] Code pushed to GitHub repository
 - [ ] Have OpenAI API key (optional)
 - [ ] Have VirusTotal API key (optional)
-- [ ] Created Render account
 - [ ] Created Vercel account
 
-## Part 1: Deploy Backend on Render (Do This First!)
+## Part 1: Configure Backend Service
 
-1. Deploy to Render
-   - [ ] Go to https://render.com and log in
-   - [ ] Click "New +" → "Web Service"
-   - [ ] Connect your GitHub repository
-   - [ ] Use these settings:
-     * Name: `sentinelai-backend`
-     * Environment: `Python 3`
-     * Build Command: `pip install -r backend/requirements.txt`
-     * Start Command: `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+1. Deploy backend service in Vercel
+   - [ ] Keep backend entrypoint set to `backend`
+   - [ ] Confirm routePrefix is `/_/backend`
 
-2. Set Environment Variables in Render
+2. Set Environment Variables
    - [ ] `OPENAI_API_KEY` = your OpenAI key
    - [ ] `VIRUSTOTAL_API_KEY` = your VirusTotal key  
    - [ ] `SECRET_KEY` = (auto-generate or use a random 32-char string)
-   - [ ] `ALLOWED_ORIGINS` = (leave blank for now, will update after frontend)
-   - [ ] Click "Create Web Service"
+   - [ ] `ALLOWED_ORIGINS` = (set if your backend enforces CORS)
 
 3. Wait for Deployment
    - [ ] Wait 5-10 minutes for build to complete
-   - [ ] Copy your backend URL: `https://sentinelai-backend-XXXX.onrender.com`
-   - [ ] Test it: Visit `https://your-backend-url.onrender.com/docs`
+   - [ ] Test backend route: `/_/backend/docs`
 
 ## Part 2: Deploy Frontend on Vercel
 
 1. Update Configuration
-   - [ ] Edit [frontend/vercel.json](frontend/vercel.json)
-   - [ ] Replace `your-render-backend-url.onrender.com` with your actual Render URL
+   - [ ] Edit [vercel.json](vercel.json)
    - [ ] Commit and push: `git add . && git commit -m "Update Render URL" && git push`
 
 2. Deploy to Vercel
    - [ ] Go to https://vercel.com and log in
    - [ ] Click "Add New" → "Project"
    - [ ] Import your GitHub repository
-   - [ ] Set Root Directory to `frontend`
    - [ ] Confirm project settings and deploy
 
 3. Set Environment Variable
-   - [ ] Optional: add `VITE_API_URL` = your Render backend URL
-   - [ ] If not set, API traffic uses Vercel rewrite rules in [frontend/vercel.json](frontend/vercel.json)
+   - [ ] Optional: add `VITE_API_URL` = `/_/backend`
+   - [ ] If not set, API traffic uses the default backend service prefix
 
 4. Deploy
    - [ ] Click "Deploy"
@@ -57,13 +46,11 @@
 ## Part 3: Final Configuration
 
 1. Update Backend CORS
-   - [ ] Go back to Render dashboard
-   - [ ] Navigate to your service → Environment
-   - [ ] Update `ALLOWED_ORIGINS` with your Vercel URL:
+    - [ ] Update `ALLOWED_ORIGINS` with your Vercel URL if needed:
      ```
      https://your-project.vercel.app,http://localhost:5173
      ```
-   - [ ] Save changes (backend will auto-redeploy)
+    - [ ] Save changes (backend will auto-redeploy)
 
 2. Test Your Deployment
    - [ ] Visit your Vercel URL
@@ -74,30 +61,29 @@
 ## URLs to Save
 
 - **Frontend (Vercel)**: ___________________________
-- **Backend (Render)**: ___________________________
-- **API Docs**: https://your-backend-url.onrender.com/docs
+- **Backend**: ___________________________
+- **API Docs**: /_/backend/docs
 
 ## Common Issues
 
 **Backend won't start?**
-- Check Render logs for Python errors
+- Check Vercel service logs for Python errors
 - Verify requirements.txt is in backend/ folder
 - Make sure Python 3.11+ is used
 
-**Frontend shows "Connection Error"?**
-- Verify `vercel.json` has the correct Render URL in rewrites
+- **Frontend shows "Connection Error"?**
+- Verify `vercel.json` has the correct service entrypoints
 - If using env vars, verify VITE_API_URL is set in Vercel
-- Ensure backend ALLOWED_ORIGINS includes Vercel URL
+- Ensure backend ALLOWED_ORIGINS includes Vercel URL if CORS is enforced
 
 **CORS Errors?**
-- Double-check ALLOWED_ORIGINS in Render includes your Vercel URL
+- Double-check ALLOWED_ORIGINS includes your Vercel URL
 - Make sure there are no trailing slashes
 - Wait a few minutes for backend to redeploy after changing env vars
 
-**Backend is slow/times out?**
-- Render free tier spins down after 15 min inactivity
+- **Backend is slow/times out?**
+- Vercel service cold starts can occur on first request
 - First request after sleep takes 30-60 seconds (cold start)
-- Upgrade to paid tier for always-on service
 
 ## Optional: Custom Domain
 
@@ -105,11 +91,6 @@
 1. Go to Project Settings → Domains
 2. Click "Add"
 3. Follow DNS setup instructions
-
-### Render  
-1. Go to your service → Settings
-2. Click "Custom Domain"
-3. Add your domain and update DNS
 
 ## Need Help?
 
