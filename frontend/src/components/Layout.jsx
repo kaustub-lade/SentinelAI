@@ -3,6 +3,8 @@ import { Shield, LayoutDashboard, Bug, Mail, AlertTriangle, MessageSquare, LogOu
 
 export default function Layout({ setIsAuthenticated }) {
   const handleLogout = () => {
+    localStorage.removeItem('sentinelai_token')
+    localStorage.removeItem('sentinelai_user')
     setIsAuthenticated(false)
   }
 

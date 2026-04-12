@@ -9,7 +9,7 @@ import VulnerabilityIntelligence from './pages/VulnerabilityIntelligence'
 import SecurityAssistant from './pages/SecurityAssistant'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('sentinelai_token')))
 
   return (
     <Router>

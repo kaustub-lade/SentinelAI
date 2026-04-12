@@ -16,6 +16,8 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.database import Base, engine
+from app import models  # noqa: F401
 
 # Create FastAPI app
 app = FastAPI(
@@ -25,6 +27,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
 
 # CORS configuration
 app.add_middleware(

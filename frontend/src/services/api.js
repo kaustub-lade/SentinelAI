@@ -10,6 +10,14 @@ const api = axios.create({
   },
 })
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('sentinelai_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // Auth API
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),

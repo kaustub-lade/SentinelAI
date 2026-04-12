@@ -2,95 +2,84 @@
 Authentication Endpoints
 """
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from datetime import datetime, timedelta
-from typing import Optional
-import os
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.security import create_access_token, get_password_hash, verify_password
+from app.models import User
+from app.schemas import TokenResponse, UserCreate, UserLogin, UserOut
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
+@router.post("/login", response_model=TokenResponse)
+def login(credentials: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == credentials.email).first()
+    if not user or not verify_password(credentials.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
 
-
-class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str
-    user: dict
-
-
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    full_name: str
-    organization: Optional[str] = None
-
-
-@router.post("/login", response_model=LoginResponse)
-async def login(credentials: LoginRequest):
-    """
-    User login endpoint
-    Returns JWT token for authentication
-    """
-    # Mock authentication - replace with real authentication in production
-    if credentials.email and credentials.password:
-        # In production, verify against database
-        mock_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token"
-        
-        return {
-            "access_token": mock_token,
-            "token_type": "bearer",
-            "user": {
-                "id": "user_123",
-                "email": credentials.email,
-                "full_name": "Security Admin",
-                "role": "admin"
-            }
-        }
-    
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect email or password"
-    )
+    token = create_access_token(subject=str(user.id))
+    return TokenResponse(access_token=token, user=user)
 
 
 @router.post("/register")
-async def register(user_data: RegisterRequest):
-    """
-    User registration endpoint
-    """
-    # Mock registration - replace with real database insertion
-    return {
-        "message": "User registered successfully",
-        "user": {
-            "email": user_data.email,
-            "full_name": user_data.full_name,
-            "organization": user_data.organization
-        }
-    }
+def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    user = User(
+        email=user_data.email,
+        password_hash=get_password_hash(user_data.password),
+        full_name=user_data.full_name,
+        organization=user_data.organization,
+        role="user",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token(subject=str(user.id))
+    return TokenResponse(access_token=token, user=user)
 
 
 @router.post("/logout")
-async def logout():
+def logout():
     """
     User logout endpoint
     """
     return {"message": "Logged out successfully"}
 
 
-@router.get("/me")
-async def get_current_user():
-    """
-    Get current user information
-    """
-    # Mock user data - replace with real JWT token verification
-    return {
-        "id": "user_123",
-        "email": "admin@sentinelai.com",
-        "full_name": "Security Admin",
-        "role": "admin",
-        "organization": "SentinelAI"
-    }
+@router.get("/me", response_model=UserOut)
+def me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError as exc:
+        raise credentials_exception from exc
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None:
+        raise credentials_exception
+
+    return user

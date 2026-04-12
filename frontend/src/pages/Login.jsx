@@ -1,20 +1,29 @@
 import { useState } from 'react'
 import { Shield, Mail, Lock } from 'lucide-react'
+import { authAPI } from '../services/api'
 
 export default function Login({ setIsAuthenticated }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
-    // Simulate API call
-    setTimeout(() => {
+    setError('')
+
+    try {
+      const response = await authAPI.login({ email, password })
+      localStorage.setItem('sentinelai_token', response.data.access_token)
+      localStorage.setItem('sentinelai_user', JSON.stringify(response.data.user))
       setIsAuthenticated(true)
+    } catch (err) {
+      console.error('Login failed:', err)
+      setError('Invalid email or password')
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -75,11 +84,15 @@ export default function Login({ setIsAuthenticated }) {
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
+
+            {error && (
+              <p className="text-sm text-red-400 text-center">{error}</p>
+            )}
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-400">
-              Demo: Use any email and password
+              Use a registered account to sign in
             </p>
           </div>
         </div>
