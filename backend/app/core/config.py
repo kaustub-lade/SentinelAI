@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./sentinelai.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./sentinelai.db")
 
     @property
     def allowed_origins(self) -> List[str]:

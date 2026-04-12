@@ -19,6 +19,6 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 30
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./sentinelai.db
+        value: sqlite:///./sentinelai.db
       - key: ALLOWED_ORIGINS
         sync: false
