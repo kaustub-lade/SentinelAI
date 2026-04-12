@@ -42,6 +42,10 @@ logs/
 htmlcov/
 .pytest_cache/
 
+# ML artifacts
+backend/app/ml/*.joblib
+!backend/app/ml/.gitkeep
+
 # Uploads
 uploads/*
 !uploads/.gitkeep

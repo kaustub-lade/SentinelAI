@@ -2,13 +2,23 @@
 Security AI Assistant Endpoints - Natural Language Security Queries
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
-import random
 from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from jose import JWTError, jwt
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.models import AssistantFeedback, AssistantMessage, User
+from app.services.audit import log_audit_event
+from app.services.assistant_context import build_security_response
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 class ChatMessage(BaseModel):
@@ -28,208 +38,80 @@ class ChatResponse(BaseModel):
     suggestions: Optional[List[str]] = None
 
 
+class ConversationMessage(BaseModel):
+    role: str
+    content: str
+    timestamp: str
+
+
+class ConversationResponse(BaseModel):
+    conversation_id: str
+    messages: List[ConversationMessage]
+
+
+def _get_current_user_id(token: Optional[str], db: Session) -> Optional[int]:
+    if not token:
+        return None
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError as exc:
+        raise credentials_exception from exc
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None:
+        raise credentials_exception
+
+    return user.id
+
+
 @router.post("/chat", response_model=ChatResponse)
-async def chat_with_assistant(request: ChatRequest):
+async def chat_with_assistant(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme),
+):
     """
     Chat with AI Security Assistant
     Natural language interface for security queries
     """
-    user_message = request.message.lower()
+    current_user_id = _get_current_user_id(token, db)
+    response, suggestions = build_security_response(request.message, db)
     
-    # Simple pattern matching for demo - replace with actual LLM
-    if "vulnerability" in user_message or "cve" in user_message:
-        response = """**Vulnerability Analysis:**
+    conversation_id = request.conversation_id or f"conv_{int(datetime.utcnow().timestamp())}"
 
-Based on the latest scan, here are your top priority vulnerabilities:
-
-1. **CVE-2024-3094** (CVSS 9.8) - XZ Utils Backdoor
-   - **Risk**: Critical
-   - **Affected Systems**: 45 servers
-   - **Action**: Immediate patching required
-
-2. **CVE-2024-1234** (CVSS 8.5) - OpenSSL RCE
-   - **Risk**: High
-   - **Affected Systems**: 128 endpoints
-   - **Action**: Patch within 24 hours
-
-3. **CVE-2024-5678** (CVSS 7.2) - Apache DoS
-   - **Risk**: Medium
-   - **Affected Systems**: 23 servers
-   - **Action**: Schedule patching this week
-
-**Recommendation**: Focus on CVE-2024-3094 first as it's actively being exploited."""
-        
-        suggestions = [
-            "Show me patch details for CVE-2024-3094",
-            "What are the latest critical vulnerabilities?",
-            "How do I mitigate CVE-2024-3094?"
-        ]
-    
-    elif "malware" in user_message:
-        response = """**Malware Detection Summary:**
-
-In the last 24 hours, our AI detection engine has identified:
-
-- **4 malicious files** detected and quarantined
-- **7 suspicious files** under investigation
-- **94% detection accuracy** with minimal false positives
-
-**Recent Detections:**
-1. Trojan.Generic.KD - Blocked at email gateway
-2. Ransomware.Lockbit - Quarantined from endpoint
-3. Spyware.InfoStealer - Removed from network share
-
-**Recommendation**: All threats have been contained. Review quarantined files in the Malware Analysis dashboard."""
-        
-        suggestions = [
-            "Show me details of recent malware detections",
-            "How does the AI malware detection work?",
-            "Scan a file for malware"
-        ]
-    
-    elif "phishing" in user_message:
-        response = """**Phishing Detection Report:**
-
-Today's phishing detection statistics:
-
-- **12 phishing emails** blocked automatically
-- **5 suspicious URLs** flagged for review
-- **98% detection accuracy**
-
-**Top Phishing Attempts:**
-1. Fake banking verification emails
-2. Package delivery scams
-3. Account suspension threats
-
-**Trends**: Increased phishing activity targeting financial services. AI models have been updated with new patterns.
-
-**Recommendation**: Continue user security awareness training."""
-        
-        suggestions = [
-            "Check if an email is phishing",
-            "What are common phishing indicators?",
-            "Show phishing detection history"
-        ]
-    
-    elif "threat" in user_message or "attack" in user_message:
-        response = """**Current Threat Landscape:**
-
-**Active Threats:** 14 detected today
-- 🔴 Critical: 3
-- 🟠 High: 5
-- 🟡 Medium: 6
-
-**Threat Types:**
-- Malware attempts: 4
-- Phishing campaigns: 7
-- Suspicious activity: 3
-
-**Geographic Distribution:**
-- Most attacks from: Russia, China, Brazil
-- Target services: Web applications, email, endpoints
-
-**System Status:** All threats contained. No active incidents.
-
-**Recommendation**: Monitor the 3 critical alerts in real-time."""
-        
-        suggestions = [
-            "Show me critical threats",
-            "What's the current risk score?",
-            "Block suspicious IP addresses"
-        ]
-    
-    elif "recommendation" in user_message or "what should" in user_message:
-        response = """**Security Recommendations:**
-
-Based on AI analysis of your environment:
-
-**Immediate Actions:**
-1. ✅ Patch CVE-2024-3094 on all affected systems
-2. ✅ Review and block 5 suspicious IP addresses
-3. ✅ Update email gateway rules for new phishing patterns
-
-**This Week:**
-- Schedule security awareness training for users
-- Review access controls for critical assets
-- Update firewall rules based on threat intelligence
-
-**Long-term:**
-- Implement zero-trust architecture
-- Deploy advanced endpoint protection
-- Enhance SIEM correlation rules
-
-**Risk Reduction**: These actions will reduce your risk score from 75 to 45."""
-        
-        suggestions = [
-            "How do I implement these recommendations?",
-            "Show me the risk score breakdown",
-            "Generate a security report"
-        ]
-    
-    elif "help" in user_message or "what can you do" in user_message:
-        response = """**🤖 SentinelAI Security Assistant**
-
-I'm your AI-powered cybersecurity expert. I can help you with:
-
-**Threat Intelligence:**
-- Analyze current threats and vulnerabilities
-- Explain CVEs in simple terms
-- Prioritize security issues
-
-**Detection & Response:**
-- Check files for malware
-- Detect phishing emails and URLs
-- Provide incident response guidance
-
-**Vulnerability Management:**
-- List critical vulnerabilities
-- Recommend patching priorities
-- Track vulnerability trends
-
-**Security Insights:**
-- Security posture assessment
-- Risk score analysis
-- Compliance recommendations
-
-**Example Questions:**
-- "What are my critical vulnerabilities?"
-- "Is this email a phishing attempt?"
-- "What threats were detected today?"
-- "How can I improve my security posture?"
-
-How can I assist you today?"""
-        
-        suggestions = [
-            "What are my critical vulnerabilities?",
-            "Show me today's threat summary",
-            "How is my security posture?"
-        ]
-    
-    else:
-        response = f"""I understand you're asking about: "{request.message}"
-
-As your AI Security Assistant, I can provide insights on:
-- Threat detection and analysis
-- Vulnerability management
-- Malware and phishing detection
-- Security recommendations
-- Risk assessment
-
-Could you please provide more specific details about what you'd like to know? 
-
-For example:
-- "What are my top vulnerabilities?"
-- "Analyze recent threats"
-- "Check if a file is malicious"
-- "Show phishing attempts today" """
-        
-        suggestions = [
-            "What are my critical vulnerabilities?",
-            "Show today's threat summary",
-            "Help me understand CVE-2024-3094"
-        ]
-    
-    conversation_id = request.conversation_id or f"conv_{random.randint(10000, 99999)}"
+    user_message = AssistantMessage(
+        conversation_id=conversation_id,
+        user_id=current_user_id,
+        role="user",
+        content=request.message,
+    )
+    assistant_message = AssistantMessage(
+        conversation_id=conversation_id,
+        user_id=current_user_id,
+        role="assistant",
+        content=response,
+    )
+    db.add(user_message)
+    db.add(assistant_message)
+    log_audit_event(
+        db,
+        action="assistant.chat",
+        user_id=current_user_id,
+        resource_type="assistant_thread",
+        resource_id=conversation_id,
+        details={"message_length": len(request.message)},
+    )
+    db.commit()
     
     return ChatResponse(
         response=response,
@@ -257,36 +139,105 @@ async def get_quick_suggestions():
     }
 
 
-@router.get("/conversation/{conversation_id}")
-async def get_conversation(conversation_id: str):
+@router.get("/conversation/{conversation_id}", response_model=ConversationResponse)
+async def get_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme),
+):
     """
     Get conversation history
     """
-    # Mock conversation history
-    return {
-        "conversation_id": conversation_id,
-        "messages": [
-            {
-                "role": "user",
-                "content": "What are my critical vulnerabilities?",
-                "timestamp": datetime.now().isoformat()
-            },
-            {
-                "role": "assistant",
-                "content": "Based on latest scan, you have 3 critical vulnerabilities requiring immediate attention...",
-                "timestamp": datetime.now().isoformat()
-            }
-        ]
-    }
+    current_user_id = _get_current_user_id(token, db)
+
+    query = db.query(AssistantMessage).filter(AssistantMessage.conversation_id == conversation_id)
+    if current_user_id is not None:
+        query = query.filter(AssistantMessage.user_id == current_user_id)
+
+    messages = query.order_by(AssistantMessage.created_at.asc(), AssistantMessage.id.asc()).all()
+
+    return ConversationResponse(
+        conversation_id=conversation_id,
+        messages=[
+            ConversationMessage(
+                role=message.role,
+                content=message.content,
+                timestamp=message.created_at.isoformat(),
+            )
+            for message in messages
+        ],
+    )
 
 
 @router.post("/feedback")
-async def submit_feedback(conversation_id: str, rating: int, feedback: Optional[str] = None):
+async def submit_feedback(
+    conversation_id: str,
+    rating: int,
+    feedback: Optional[str] = None,
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme),
+):
     """
     Submit feedback for AI responses
     """
+    current_user_id = _get_current_user_id(token, db)
+    db_feedback = AssistantFeedback(
+        conversation_id=conversation_id,
+        user_id=current_user_id,
+        rating=rating,
+        feedback=feedback,
+    )
+    db.add(db_feedback)
+    log_audit_event(
+        db,
+        action="assistant.feedback",
+        user_id=current_user_id,
+        resource_type="assistant_thread",
+        resource_id=conversation_id,
+        details={"rating": rating},
+    )
+    db.commit()
+
     return {
         "message": "Feedback received",
         "conversation_id": conversation_id,
         "rating": rating
+    }
+
+
+@router.delete("/conversation/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme),
+):
+    """
+    Delete a stored conversation thread and its feedback.
+    """
+    current_user_id = _get_current_user_id(token, db)
+
+    message_query = db.query(AssistantMessage).filter(AssistantMessage.conversation_id == conversation_id)
+    feedback_query = db.query(AssistantFeedback).filter(AssistantFeedback.conversation_id == conversation_id)
+
+    if current_user_id is not None:
+        message_query = message_query.filter(AssistantMessage.user_id == current_user_id)
+        feedback_query = feedback_query.filter(AssistantFeedback.user_id == current_user_id)
+
+    deleted_messages = message_query.delete(synchronize_session=False)
+    deleted_feedback = feedback_query.delete(synchronize_session=False)
+    log_audit_event(
+        db,
+        action="assistant.clear_conversation",
+        user_id=current_user_id,
+        resource_type="assistant_thread",
+        resource_id=conversation_id,
+        details={"deleted_messages": deleted_messages, "deleted_feedback": deleted_feedback},
+    )
+    db.commit()
+
+    return {
+        "message": "Conversation cleared",
+        "conversation_id": conversation_id,
+        "deleted_messages": deleted_messages,
+        "deleted_feedback": deleted_feedback,
     }

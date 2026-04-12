@@ -1,7 +1,10 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { Shield, LayoutDashboard, Bug, Mail, AlertTriangle, MessageSquare, LogOut } from 'lucide-react'
+import { getStoredUser } from '../utils/session'
 
 export default function Layout({ setIsAuthenticated }) {
+  const currentUser = getStoredUser()
+
   const handleLogout = () => {
     localStorage.removeItem('sentinelai_token')
     localStorage.removeItem('sentinelai_user')
@@ -55,8 +58,9 @@ export default function Layout({ setIsAuthenticated }) {
         <div className="p-4 border-t border-slate-700">
           <div className="flex items-center justify-between mb-3 px-4 py-2">
             <div>
-              <p className="text-sm font-medium text-white">Admin User</p>
-              <p className="text-xs text-slate-400">admin@sentinelai.com</p>
+              <p className="text-sm font-medium text-white">{currentUser?.full_name || 'User'}</p>
+              <p className="text-xs text-slate-400">{currentUser?.email || 'unknown@example.com'}</p>
+              <p className="text-xs text-blue-300 mt-1 uppercase tracking-wide">{currentUser?.role || 'user'}</p>
             </div>
           </div>
           <button

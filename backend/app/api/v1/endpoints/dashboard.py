@@ -2,10 +2,15 @@
 Dashboard Endpoints - Overview and Analytics
 """
 
-from fastapi import APIRouter
-from typing import List, Dict
-from datetime import datetime, timedelta
 import random
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.core.auth_utils import require_roles
+from app.core.database import get_db
+from app.models import AuditLog
 
 router = APIRouter()
 
@@ -114,3 +119,27 @@ async def get_system_health():
         "uptime_percentage": 99.8,
         "last_scan": datetime.now().isoformat()
     }
+
+
+@router.get("/activity")
+async def get_recent_activity(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("admin", "analyst")),
+):
+    """Get recent audit events for the dashboard."""
+    events = db.query(AuditLog).order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(8).all()
+
+    activity = []
+    for event in events:
+        activity.append({
+            "id": event.id,
+            "action": event.action,
+            "resource_type": event.resource_type,
+            "resource_id": event.resource_id,
+            "status": event.status,
+            "severity": event.severity,
+            "details": event.details,
+            "timestamp": event.created_at.isoformat(),
+        })
+
+    return {"activity": activity}

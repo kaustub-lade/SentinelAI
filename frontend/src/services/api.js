@@ -34,6 +34,15 @@ export const dashboardAPI = {
   getThreatDistribution: () => api.get('/dashboard/threat-distribution'),
   getGeographicThreats: () => api.get('/dashboard/geographic-threats'),
   getSystemHealth: () => api.get('/dashboard/system-health'),
+  getActivity: () => api.get('/dashboard/activity'),
+}
+
+// Reports API
+export const reportsAPI = {
+  exportBundle: (scope = 'all') => api.get('/reports/export', {
+    params: { scope },
+    responseType: 'blob',
+  }),
 }
 
 // Malware API
@@ -56,6 +65,7 @@ export const phishingAPI = {
 
 // Vulnerabilities API
 export const vulnerabilitiesAPI = {
+  fetchFromNvd: (limit = 50) => api.post('/vulnerabilities/fetch', null, { params: { limit } }),
   getList: (params) => api.get('/vulnerabilities/list', { params }),
   getCVEDetails: (cveId) => api.get(`/vulnerabilities/cve/${cveId}`),
   getPrioritized: () => api.get('/vulnerabilities/prioritize'),
@@ -73,6 +83,7 @@ export const assistantAPI = {
   }),
   getSuggestions: () => api.get('/assistant/suggestions'),
   getConversation: (conversationId) => api.get(`/assistant/conversation/${conversationId}`),
+  clearConversation: (conversationId) => api.delete(`/assistant/conversation/${conversationId}`),
   submitFeedback: (conversationId, rating, feedback) => 
     api.post('/assistant/feedback', null, {
       params: { conversation_id: conversationId, rating, feedback },

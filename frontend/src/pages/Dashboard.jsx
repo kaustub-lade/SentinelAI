@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Activity, Shield, AlertTriangle, Bug, TrendingUp } from 'lucide-react'
+import { Activity, Shield, AlertTriangle, Bug, TrendingUp, ShieldAlert, MailWarning, MessageSquareText, Download } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { dashboardAPI } from '../services/api'
+import { dashboardAPI, reportsAPI } from '../services/api'
+import { getStoredUser, isPrivilegedRole } from '../utils/session'
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [threats, setThreats] = useState([])
   const [timeline, setTimeline] = useState([])
   const [distribution, setDistribution] = useState([])
+  const [activity, setActivity] = useState([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [currentUser] = useState(() => getStoredUser())
+  const canAccessReports = isPrivilegedRole(currentUser)
 
   useEffect(() => {
     loadDashboardData()
@@ -16,21 +21,43 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [statsRes, threatsRes, timelineRes, distRes] = await Promise.all([
+      const [statsRes, threatsRes, timelineRes, distRes, activityRes] = await Promise.all([
         dashboardAPI.getStats(),
         dashboardAPI.getRecentThreats(),
         dashboardAPI.getThreatTimeline(),
         dashboardAPI.getThreatDistribution(),
+        canAccessReports ? dashboardAPI.getActivity() : Promise.resolve({ data: { activity: [] } }),
       ])
 
       setStats(statsRes.data)
       setThreats(threatsRes.data.threats.slice(0, 5))
       setTimeline(timelineRes.data.timeline)
       setDistribution(distRes.data.distribution)
+      setActivity(activityRes?.data?.activity || [])
     } catch (error) {
       console.error('Error loading dashboard:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const downloadReports = async () => {
+    try {
+      setExporting(true)
+      const response = await reportsAPI.exportBundle('all')
+      const blob = new Blob([response.data], { type: 'application/zip' })
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `sentinelai-reports-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (error) {
+      console.error('Error exporting reports:', error)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -74,8 +101,22 @@ export default function Dashboard() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Security Dashboard</h1>
-        <p className="text-slate-400">Real-time threat monitoring and analytics</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Security Dashboard</h1>
+            <p className="text-slate-400">Real-time threat monitoring and analytics</p>
+          </div>
+          {canAccessReports && (
+            <button
+              onClick={downloadReports}
+              disabled={exporting}
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              {exporting ? 'Exporting...' : 'Download Reports'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -155,6 +196,34 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Activity Feed */}
+      {canAccessReports && (
+        <div className="card p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+            <span className="text-slate-400 text-sm">Audit trail</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {activity.length > 0 ? activity.map((item) => (
+              <div key={item.id} className="rounded-lg border border-slate-700 bg-slate-800/60 p-4">
+                <div className="flex items-start gap-3">
+                  <div className={`mt-1 p-2 rounded-lg ${item.severity === 'warning' ? 'bg-amber-600' : 'bg-blue-600'}`}>
+                    {item.action.includes('assistant') ? <MessageSquareText className="w-4 h-4 text-white" /> : item.action.includes('phishing') ? <MailWarning className="w-4 h-4 text-white" /> : <ShieldAlert className="w-4 h-4 text-white" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-medium truncate">{item.action}</p>
+                    <p className="text-slate-400 text-sm">{item.resource_type || 'system'} {item.resource_id ? `• ${item.resource_id}` : ''}</p>
+                    <p className="text-slate-500 text-xs mt-1">{new Date(item.timestamp).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <p className="text-slate-400 text-sm">No audit events recorded yet.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Recent Threats Table */}
       <div className="card p-6">

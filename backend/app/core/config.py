@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
+    NVD_API_KEY: str = os.getenv("NVD_API_KEY", "")
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./sentinelai.db")

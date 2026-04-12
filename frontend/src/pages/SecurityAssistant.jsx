@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Bot, User, Sparkles } from 'lucide-react'
+import { Send, Bot, User, Sparkles, Trash2 } from 'lucide-react'
 import { assistantAPI } from '../services/api'
 
 export default function SecurityAssistant() {
+  const STORAGE_KEY = 'sentinelai_assistant_conversation_id'
+  const initialMessage = {
+    role: 'assistant',
+    content: '👋 Hello! I\'m your AI Security Assistant. I can help you with:\n\n• Analyzing threats and vulnerabilities\n• Explaining CVEs in simple terms\n• Providing security recommendations\n• Answering security policy questions\n\nWhat would you like to know?',
+  }
   const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: '👋 Hello! I\'m your AI Security Assistant. I can help you with:\n\n• Analyzing threats and vulnerabilities\n• Explaining CVEs in simple terms\n• Providing security recommendations\n• Answering security policy questions\n\nWhat would you like to know?',
-    },
+    initialMessage,
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState([])
+  const [conversationId, setConversationId] = useState(null)
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
@@ -19,8 +22,22 @@ export default function SecurityAssistant() {
   }, [])
 
   useEffect(() => {
+    const savedConversationId = localStorage.getItem(STORAGE_KEY)
+    if (!savedConversationId) return
+
+    setConversationId(savedConversationId)
+    loadConversation(savedConversationId)
+  }, [])
+
+  useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    if (conversationId) {
+      localStorage.setItem(STORAGE_KEY, conversationId)
+    }
+  }, [conversationId])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -32,6 +49,36 @@ export default function SecurityAssistant() {
       setSuggestions(response.data.suggestions.slice(0, 4))
     } catch (error) {
       console.error('Error loading suggestions:', error)
+    }
+  }
+
+  const loadConversation = async (id) => {
+    try {
+      const response = await assistantAPI.getConversation(id)
+      const loadedMessages = response.data.messages || []
+
+      if (loadedMessages.length > 0) {
+        setMessages(loadedMessages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })))
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error)
+    }
+  }
+
+  const clearConversation = async () => {
+    try {
+      if (conversationId) {
+        await assistantAPI.clearConversation(conversationId)
+      }
+    } catch (error) {
+      console.error('Error clearing conversation:', error)
+    } finally {
+      localStorage.removeItem(STORAGE_KEY)
+      setConversationId(null)
+      setMessages([initialMessage])
     }
   }
 
@@ -48,11 +95,12 @@ export default function SecurityAssistant() {
     setLoading(true)
 
     try {
-      const response = await assistantAPI.chat(message)
+      const response = await assistantAPI.chat(message, conversationId)
       const assistantMessage = {
         role: 'assistant',
         content: response.data.response,
       }
+      setConversationId(response.data.conversation_id)
       setMessages((prev) => [...prev, assistantMessage])
 
       if (response.data.suggestions) {
@@ -82,10 +130,18 @@ export default function SecurityAssistant() {
           <div className="p-3 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
             <Bot className="w-6 h-6 text-white" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">AI Security Assistant</h1>
             <p className="text-slate-400">Natural language security intelligence</p>
           </div>
+          <button
+            onClick={clearConversation}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+            title="Clear conversation"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear thread
+          </button>
         </div>
       </div>
 
