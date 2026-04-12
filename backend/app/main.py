@@ -3,17 +3,19 @@ SentinelAI - Main Application Entry Point
 AI-Powered Cybersecurity Platform
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 
+# Load environment variables BEFORE importing app modules
+# so that Settings picks up .env values at instantiation time
+load_dotenv()
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from app.api.v1.router import api_router
 from app.core.config import settings
-
-# Load environment variables
-load_dotenv()
 
 # Create FastAPI app
 app = FastAPI(

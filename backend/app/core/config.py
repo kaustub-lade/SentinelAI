@@ -20,12 +20,22 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000"
-    ]
+    ALLOWED_ORIGINS: List[str] = []
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Parse ALLOWED_ORIGINS from environment variable (comma-separated)
+        origins_env = os.getenv("ALLOWED_ORIGINS", "")
+        if origins_env:
+            self.ALLOWED_ORIGINS = [origin.strip() for origin in origins_env.split(",")]
+        else:
+            # Default origins for local development
+            self.ALLOWED_ORIGINS = [
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:3000"
+            ]
     
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
