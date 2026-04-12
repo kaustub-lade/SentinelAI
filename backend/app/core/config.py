@@ -5,6 +5,7 @@ Configuration settings for SentinelAI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
+import json
 
 
 class Settings(BaseSettings):
@@ -13,7 +14,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",
-        env_parse_delimiter=",",
     )
     
     # API Settings
@@ -26,12 +26,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
+    ALLOWED_ORIGINS: str = (
+        "http://localhost:5173,"
+        "http://localhost:3000,"
+        "http://127.0.0.1:5173,"
         "http://127.0.0.1:3000"
-    ]
+    )
 
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -39,5 +39,21 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./sentinelai.db")
+
+    @property
+    def allowed_origins(self) -> List[str]:
+        raw_origins = (self.ALLOWED_ORIGINS or "").strip()
+        if not raw_origins:
+            return []
+
+        if raw_origins.startswith("["):
+            try:
+                parsed = json.loads(raw_origins)
+                if isinstance(parsed, list):
+                    return [str(origin).strip() for origin in parsed if str(origin).strip()]
+            except json.JSONDecodeError:
+                pass
+
+        return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
     
 settings = Settings()
