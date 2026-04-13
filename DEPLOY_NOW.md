@@ -1,55 +1,61 @@
-# Quick Start - Deploy to Vercel and Render
+# Quick Start - Deploy Frontend on Vercel and Backend on Render
 
-Your SentinelAI project is configured for Vercel experimental services for the frontend and backend.
+SentinelAI is configured for:
 
-## What Was Added
+- Frontend: Vercel
+- Backend: Render (Docker)
+- Database: MongoDB Atlas
 
-- `vercel.json` for Vercel experimental services
-- `render.yaml` for backend deployment on Render
-- Updated deployment docs for Vercel flow
+## 1. Push Latest Code
 
-## Next Steps
+Use your normal git flow:
 
-### 1. Push to GitHub
-
-```bash
 git add .
-git commit -m "Migrate deployment setup to Vercel and Render"
+git commit -m "Deploy-ready MongoDB config"
 git push origin main
-```
 
-### 2. Deploy Backend Service
+## 2. Deploy Backend on Render
 
-1. In Vercel, keep the `backend` service entrypoint in [vercel.json](vercel.json).
-2. Set backend environment variables in Vercel if needed:
-   - `OPENAI_API_KEY`
-   - `VIRUSTOTAL_API_KEY`
-   - `SECRET_KEY`
-   - `ALLOWED_ORIGINS`
-3. Make sure the backend service is deployed from the `backend` folder.
+1. In Render, create or update the backend web service using [render.yaml](render.yaml).
+2. Ensure these backend environment variables are set in Render:
+   - OPENAI_API_KEY
+   - VIRUSTOTAL_API_KEY
+   - SECRET_KEY
+   - ALGORITHM=HS256
+   - ACCESS_TOKEN_EXPIRE_MINUTES=30
+   - MONGODB_URL
+   - MONGODB_DB_NAME=sentinelai
+   - ALLOWED_ORIGINS
+3. Confirm Render uses [backend/Dockerfile](backend/Dockerfile) and the repo root as docker context.
 
-### 3. Deploy Frontend on Vercel
+## 3. Deploy Frontend on Vercel
 
-1. Open [vercel.json](vercel.json) and confirm the frontend and backend services match your repo layout.
-2. Commit and push the change.
-3. Go to https://vercel.com and import your GitHub repository.
-4. Deploy using the defaults from [vercel.json](vercel.json).
-5. Copy your Vercel URL.
+1. Import the repository in Vercel.
+2. Set the frontend root to the frontend app (if prompted).
+3. Set frontend API base URL to your Render backend URL.
+4. Deploy and copy your Vercel frontend URL.
 
-### 4. Update CORS on Render
+## 4. Set CORS Correctly
 
-Set `ALLOWED_ORIGINS` in Vercel to include your production frontend domain if your backend enforces CORS:
+Set backend ALLOWED_ORIGINS to include your deployed frontend URL and local dev URL.
 
-```text
-https://your-project.vercel.app,http://localhost:5173
-```
+Example:
 
-## Done
+https://your-frontend.vercel.app,http://localhost:5173
 
-Visit your Vercel URL and test the app.
+## 5. Smoke Test
 
-## If API Calls Fail
+Validate these flows in production:
 
-- Check [vercel.json](vercel.json) service entrypoints and route prefixes
-- Check backend environment variable `ALLOWED_ORIGINS` includes your Vercel URL
-- Check backend logs for errors
+- Register and login
+- Vulnerability stats page
+- Phishing URL check
+- Assistant chat
+- Admin report export
+
+## If Something Fails
+
+- Check Render logs first
+- Verify MONGODB_URL and MONGODB_DB_NAME on Render
+- Verify ALLOWED_ORIGINS includes the exact Vercel domain
+- Verify frontend API base URL points to Render backend
