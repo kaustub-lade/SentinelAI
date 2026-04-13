@@ -6,11 +6,10 @@ import random
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from app.core.auth_utils import require_roles
 from app.core.database import get_db
-from app.models import AuditLog
 
 router = APIRouter()
 
@@ -123,23 +122,24 @@ async def get_system_health():
 
 @router.get("/activity")
 async def get_recent_activity(
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Get recent audit events for the dashboard."""
-    events = db.query(AuditLog).order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(8).all()
+    events = list(db["audit_logs"].find().sort("created_at", -1).limit(8))
 
     activity = []
     for event in events:
+        created_at = event.get("created_at")
         activity.append({
-            "id": event.id,
-            "action": event.action,
-            "resource_type": event.resource_type,
-            "resource_id": event.resource_id,
-            "status": event.status,
-            "severity": event.severity,
-            "details": event.details,
-            "timestamp": event.created_at.isoformat(),
+            "id": str(event.get("_id")),
+            "action": event.get("action"),
+            "resource_type": event.get("resource_type"),
+            "resource_id": event.get("resource_id"),
+            "status": event.get("status"),
+            "severity": event.get("severity"),
+            "details": event.get("details"),
+            "timestamp": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
         })
 
     return {"activity": activity}

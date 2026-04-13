@@ -14,7 +14,7 @@ class UserLogin(BaseModel):
 
 
 class UserOut(BaseModel):
-    id: int
+    id: str
     email: EmailStr
     full_name: str
     organization: str | None = None

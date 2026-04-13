@@ -16,7 +16,9 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 30
-      - key: DATABASE_URL
-        value: sqlite:///./sentinelai.db
+      - key: MONGODB_URL
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: sentinelai
       - key: ALLOWED_ORIGINS
         sync: false

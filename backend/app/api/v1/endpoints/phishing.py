@@ -7,11 +7,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from app.core.database import get_db
 from app.core.auth_utils import require_roles
-from app.models import Scan
 from app.services.audit import log_audit_event
 from app.services.phishing_model import phishing_model_service
 
@@ -35,7 +34,7 @@ class PhishingResult(BaseModel):
 
 
 @router.post("/check-email", response_model=PhishingResult)
-async def check_email(request: PhishingCheckRequest, db: Session = Depends(get_db)):
+async def check_email(request: PhishingCheckRequest, db: Database = Depends(get_db)):
     """
     Analyze email for phishing indicators
     Uses NLP and pattern recognition
@@ -47,29 +46,28 @@ async def check_email(request: PhishingCheckRequest, db: Session = Depends(get_d
         url=request.url,
     )
 
-    scan = Scan(
-        user_id=0,
-        scan_type="phishing",
-        input_data=json.dumps(request.model_dump(), default=str),
-        result=json.dumps(result, default=str),
-        score=int(round(result["confidence"] * 100)),
-    )
-    db.add(scan)
+    scan_doc = {
+        "user_id": "system",
+        "scan_type": "phishing",
+        "input_data": json.dumps(request.model_dump(), default=str),
+        "result": json.dumps(result, default=str),
+        "score": int(round(result["confidence"] * 100)),
+    }
+    insert_result = db["scans"].insert_one(scan_doc)
     log_audit_event(
         db,
         action="phishing.check_email",
         resource_type="scan",
-        resource_id=str(scan.id or "pending"),
+        resource_id=str(insert_result.inserted_id),
         severity="warning" if result["is_phishing"] else "info",
         details={"confidence": result["confidence"], "is_phishing": result["is_phishing"]},
     )
-    db.commit()
 
     return PhishingResult(**result)
 
 
 @router.post("/check-url")
-async def check_url(url: str, db: Session = Depends(get_db)):
+async def check_url(url: str, db: Database = Depends(get_db)):
     """
     Check if URL is malicious or phishing
     """
@@ -80,23 +78,22 @@ async def check_url(url: str, db: Session = Depends(get_db)):
         url=url,
     )
 
-    scan = Scan(
-        user_id=0,
-        scan_type="phishing",
-        input_data=json.dumps({"url": url}),
-        result=json.dumps(result, default=str),
-        score=int(round(result["confidence"] * 100)),
-    )
-    db.add(scan)
+    scan_doc = {
+        "user_id": "system",
+        "scan_type": "phishing",
+        "input_data": json.dumps({"url": url}),
+        "result": json.dumps(result, default=str),
+        "score": int(round(result["confidence"] * 100)),
+    }
+    insert_result = db["scans"].insert_one(scan_doc)
     log_audit_event(
         db,
         action="phishing.check_url",
         resource_type="scan",
-        resource_id=str(scan.id or "pending"),
+        resource_id=str(insert_result.inserted_id),
         severity="warning" if result["is_phishing"] else "info",
         details={"url": url, "confidence": result["confidence"]},
     )
-    db.commit()
 
     return {
         "url": url,
@@ -110,33 +107,29 @@ async def check_url(url: str, db: Session = Depends(get_db)):
 
 
 @router.get("/recent-phishing")
-async def get_recent_phishing(db: Session = Depends(get_db)):
+async def get_recent_phishing(db: Database = Depends(get_db)):
     """
     Get recent phishing detection history
     """
-    scans = (
-        db.query(Scan)
-        .filter(Scan.scan_type == "phishing")
-        .order_by(Scan.created_at.desc())
-        .limit(10)
-        .all()
-    )
+    scans = list(db["scans"].find({"scan_type": "phishing"}).sort("created_at", -1).limit(10))
 
     history = []
     for idx, scan in enumerate(scans, start=1):
         try:
-            result = json.loads(scan.result)
-            input_data = json.loads(scan.input_data)
+            result = json.loads(scan.get("result", "{}"))
+            input_data = json.loads(scan.get("input_data", "{}"))
         except json.JSONDecodeError:
             result = {}
             input_data = {}
 
+        created_at = scan.get("created_at")
+
         history.append(
             {
-                "id": f"phishing_{scan.id or idx}",
+                "id": f"phishing_{str(scan.get('_id') or idx)}",
                 "sender": input_data.get("sender_email", "unknown@unknown"),
                 "subject": input_data.get("subject", "(no subject)"),
-                "detected_at": scan.created_at.isoformat(),
+                "detected_at": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
                 "risk_level": result.get("risk_level", "Low"),
                 "confidence": result.get("confidence", 0),
                 "status": "Blocked" if result.get("is_phishing") else "Allowed",
@@ -147,18 +140,18 @@ async def get_recent_phishing(db: Session = Depends(get_db)):
 
 
 @router.get("/phishing-stats")
-async def get_phishing_stats(db: Session = Depends(get_db)):
+async def get_phishing_stats(db: Database = Depends(get_db)):
     """
     Get phishing detection statistics
     """
-    scans = db.query(Scan).filter(Scan.scan_type == "phishing").all()
+    scans = list(db["scans"].find({"scan_type": "phishing"}))
     total_checked = len(scans)
     phishing_detected = 0
     blocked = 0
 
     for scan in scans:
         try:
-            result = json.loads(scan.result)
+            result = json.loads(scan.get("result", "{}"))
         except json.JSONDecodeError:
             continue
         if result.get("is_phishing"):

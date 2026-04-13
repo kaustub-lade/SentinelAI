@@ -16,8 +16,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import Base, engine
-from app import models  # noqa: F401
+from app.core.database import ensure_indexes
 
 # Create FastAPI app
 app = FastAPI(
@@ -31,7 +30,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    ensure_indexes()
 
 # CORS configuration
 app.add_middleware(

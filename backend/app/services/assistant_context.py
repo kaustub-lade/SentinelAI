@@ -2,10 +2,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
-
-from app.models import CveRecord, Scan
+from pymongo.database import Database
 
 
 def _safe_json_loads(value: str | None) -> Any:
@@ -17,27 +14,15 @@ def _safe_json_loads(value: str | None) -> Any:
         return None
 
 
-def get_security_summary(db: Session) -> dict[str, Any]:
-    total_cves = db.query(func.count(CveRecord.id)).scalar() or 0
-    critical_cves = db.query(func.count(CveRecord.id)).filter(CveRecord.severity == "Critical").scalar() or 0
-    high_cves = db.query(func.count(CveRecord.id)).filter(CveRecord.severity == "High").scalar() or 0
-    phishing_scans = db.query(func.count(Scan.id)).filter(Scan.scan_type == "phishing").scalar() or 0
-    malware_scans = db.query(func.count(Scan.id)).filter(Scan.scan_type == "malware").scalar() or 0
+def get_security_summary(db: Database) -> dict[str, Any]:
+    total_cves = db["cve_records"].count_documents({})
+    critical_cves = db["cve_records"].count_documents({"severity": "Critical"})
+    high_cves = db["cve_records"].count_documents({"severity": "High"})
+    phishing_scans = db["scans"].count_documents({"scan_type": "phishing"})
+    malware_scans = db["scans"].count_documents({"scan_type": "malware"})
 
-    latest_cves = (
-        db.query(CveRecord)
-        .order_by(CveRecord.risk_score.desc())
-        .limit(3)
-        .all()
-    )
-
-    latest_phishing = (
-        db.query(Scan)
-        .filter(Scan.scan_type == "phishing")
-        .order_by(Scan.created_at.desc())
-        .limit(3)
-        .all()
-    )
+    latest_cves = list(db["cve_records"].find().sort("risk_score", -1).limit(3))
+    latest_phishing = list(db["scans"].find({"scan_type": "phishing"}).sort("created_at", -1).limit(3))
 
     return {
         "timestamp": datetime.utcnow().isoformat(),
@@ -47,10 +32,11 @@ def get_security_summary(db: Session) -> dict[str, Any]:
             "high": high_cves,
             "top": [
                 {
-                    "cve_id": cve.cve_id,
-                    "severity": cve.severity,
-                    "risk_score": cve.risk_score,
-                    "summary": cve.description[:160] + ("..." if len(cve.description) > 160 else ""),
+                    "cve_id": cve.get("cve_id"),
+                    "severity": cve.get("severity"),
+                    "risk_score": cve.get("risk_score"),
+                    "summary": (cve.get("description") or "")[:160]
+                    + ("..." if len(cve.get("description") or "") > 160 else ""),
                 }
                 for cve in latest_cves
             ],
@@ -60,9 +46,11 @@ def get_security_summary(db: Session) -> dict[str, Any]:
             "malware_total": malware_scans,
             "recent_phishing": [
                 {
-                    "score": scan.score,
-                    "created_at": scan.created_at.isoformat(),
-                    "result": _safe_json_loads(scan.result),
+                    "score": scan.get("score"),
+                    "created_at": scan.get("created_at").isoformat()
+                    if hasattr(scan.get("created_at"), "isoformat")
+                    else str(scan.get("created_at")),
+                    "result": _safe_json_loads(scan.get("result")),
                 }
                 for scan in latest_phishing
             ],
@@ -70,7 +58,7 @@ def get_security_summary(db: Session) -> dict[str, Any]:
     }
 
 
-def build_security_response(message: str, db: Session) -> tuple[str, list[str]]:
+def build_security_response(message: str, db: Database) -> tuple[str, list[str]]:
     text = message.lower().strip()
     summary = get_security_summary(db)
 

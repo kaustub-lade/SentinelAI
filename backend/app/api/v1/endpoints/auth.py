@@ -5,12 +5,12 @@ Authentication Endpoints
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from bson import ObjectId
+from pymongo.database import Database
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.models import User
 from app.services.audit import log_audit_event
 from app.schemas import TokenResponse, UserCreate, UserLogin, UserOut
 
@@ -18,10 +18,21 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
+def _serialize_user(user_doc: dict) -> dict:
+    return {
+        "id": str(user_doc["_id"]),
+        "email": user_doc["email"],
+        "full_name": user_doc.get("full_name", ""),
+        "organization": user_doc.get("organization"),
+        "role": user_doc.get("role", "user"),
+        "is_active": user_doc.get("is_active", True),
+    }
+
+
 @router.post("/login", response_model=TokenResponse)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == credentials.email).first()
-    if not user or not verify_password(credentials.password, user.password_hash):
+def login(credentials: UserLogin, db: Database = Depends(get_db)):
+    user = db["users"].find_one({"email": credentials.email})
+    if not user or not verify_password(credentials.password, user["password_hash"]):
         log_audit_event(
             db,
             action="auth.login.failed",
@@ -30,28 +41,26 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             severity="warning",
             details={"email": credentials.email},
         )
-        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
 
-    token = create_access_token(subject=str(user.id))
+    token = create_access_token(subject=str(user["_id"]))
     log_audit_event(
         db,
         action="auth.login.success",
-        user_id=user.id,
+        user_id=str(user["_id"]),
         resource_type="auth",
-        resource_id=str(user.id),
-        details={"email": user.email},
+        resource_id=str(user["_id"]),
+        details={"email": user["email"]},
     )
-    db.commit()
-    return TokenResponse(access_token=token, user=user)
+    return TokenResponse(access_token=token, user=_serialize_user(user))
 
 
 @router.post("/register")
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+def register(user_data: UserCreate, db: Database = Depends(get_db)):
+    existing_user = db["users"].find_one({"email": user_data.email})
     if existing_user:
         log_audit_event(
             db,
@@ -61,34 +70,38 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             severity="warning",
             details={"email": user_data.email, "reason": "already_exists"},
         )
-        db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
 
-    user = User(
-        email=user_data.email,
-        password_hash=get_password_hash(user_data.password),
-        full_name=user_data.full_name,
-        organization=user_data.organization,
-        role="user",
+    insert_result = db["users"].insert_one(
+        {
+            "email": user_data.email,
+            "password_hash": get_password_hash(user_data.password),
+            "full_name": user_data.full_name,
+            "organization": user_data.organization,
+            "role": "user",
+            "is_active": True,
+        }
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    user = db["users"].find_one({"_id": insert_result.inserted_id})
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user",
+        )
 
-    token = create_access_token(subject=str(user.id))
+    token = create_access_token(subject=str(user["_id"]))
     log_audit_event(
         db,
         action="auth.register.success",
-        user_id=user.id,
+        user_id=str(user["_id"]),
         resource_type="auth",
-        resource_id=str(user.id),
-        details={"email": user.email},
+        resource_id=str(user["_id"]),
+        details={"email": user["email"]},
     )
-    db.commit()
-    return TokenResponse(access_token=token, user=user)
+    return TokenResponse(access_token=token, user=_serialize_user(user))
 
 
 @router.post("/logout")
@@ -101,7 +114,7 @@ def logout():
 
 
 @router.get("/me", response_model=UserOut)
-def me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def me(token: str = Depends(oauth2_scheme), db: Database = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -116,8 +129,12 @@ def me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     except JWTError as exc:
         raise credentials_exception from exc
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    try:
+        user = db["users"].find_one({"_id": ObjectId(str(user_id))})
+    except Exception:
+        user = None
+
     if user is None:
         raise credentials_exception
 
-    return user
+    return _serialize_user(user)

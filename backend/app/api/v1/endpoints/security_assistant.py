@@ -5,15 +5,15 @@ Security AI Assistant Endpoints - Natural Language Security Queries
 from datetime import datetime
 from typing import List, Optional
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from jose import JWTError, jwt
+from pymongo.database import Database
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import AssistantFeedback, AssistantMessage, User
 from app.services.audit import log_audit_event
 from app.services.assistant_context import build_security_response
 
@@ -49,7 +49,7 @@ class ConversationResponse(BaseModel):
     messages: List[ConversationMessage]
 
 
-def _get_current_user_id(token: Optional[str], db: Session) -> Optional[int]:
+def _get_current_user_id(token: Optional[str], db: Database) -> Optional[str]:
     if not token:
         return None
 
@@ -67,17 +67,21 @@ def _get_current_user_id(token: Optional[str], db: Session) -> Optional[int]:
     except JWTError as exc:
         raise credentials_exception from exc
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    try:
+        user = db["users"].find_one({"_id": ObjectId(str(user_id))})
+    except Exception:
+        user = None
+
     if user is None:
         raise credentials_exception
 
-    return user.id
+    return str(user["_id"])
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(
     request: ChatRequest,
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     token: Optional[str] = Depends(oauth2_scheme),
 ):
     """
@@ -89,20 +93,24 @@ async def chat_with_assistant(
     
     conversation_id = request.conversation_id or f"conv_{int(datetime.utcnow().timestamp())}"
 
-    user_message = AssistantMessage(
-        conversation_id=conversation_id,
-        user_id=current_user_id,
-        role="user",
-        content=request.message,
+    db["assistant_messages"].insert_many(
+        [
+            {
+                "conversation_id": conversation_id,
+                "user_id": current_user_id,
+                "role": "user",
+                "content": request.message,
+                "created_at": datetime.utcnow(),
+            },
+            {
+                "conversation_id": conversation_id,
+                "user_id": current_user_id,
+                "role": "assistant",
+                "content": response,
+                "created_at": datetime.utcnow(),
+            },
+        ]
     )
-    assistant_message = AssistantMessage(
-        conversation_id=conversation_id,
-        user_id=current_user_id,
-        role="assistant",
-        content=response,
-    )
-    db.add(user_message)
-    db.add(assistant_message)
     log_audit_event(
         db,
         action="assistant.chat",
@@ -111,7 +119,6 @@ async def chat_with_assistant(
         resource_id=conversation_id,
         details={"message_length": len(request.message)},
     )
-    db.commit()
     
     return ChatResponse(
         response=response,
@@ -142,7 +149,7 @@ async def get_quick_suggestions():
 @router.get("/conversation/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(
     conversation_id: str,
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     token: Optional[str] = Depends(oauth2_scheme),
 ):
     """
@@ -150,19 +157,21 @@ async def get_conversation(
     """
     current_user_id = _get_current_user_id(token, db)
 
-    query = db.query(AssistantMessage).filter(AssistantMessage.conversation_id == conversation_id)
+    filters = {"conversation_id": conversation_id}
     if current_user_id is not None:
-        query = query.filter(AssistantMessage.user_id == current_user_id)
+        filters["user_id"] = current_user_id
 
-    messages = query.order_by(AssistantMessage.created_at.asc(), AssistantMessage.id.asc()).all()
+    messages = list(db["assistant_messages"].find(filters).sort("created_at", 1))
 
     return ConversationResponse(
         conversation_id=conversation_id,
         messages=[
             ConversationMessage(
-                role=message.role,
-                content=message.content,
-                timestamp=message.created_at.isoformat(),
+                role=message.get("role", "assistant"),
+                content=message.get("content", ""),
+                timestamp=message.get("created_at").isoformat()
+                if hasattr(message.get("created_at"), "isoformat")
+                else str(message.get("created_at")),
             )
             for message in messages
         ],
@@ -174,20 +183,22 @@ async def submit_feedback(
     conversation_id: str,
     rating: int,
     feedback: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     token: Optional[str] = Depends(oauth2_scheme),
 ):
     """
     Submit feedback for AI responses
     """
     current_user_id = _get_current_user_id(token, db)
-    db_feedback = AssistantFeedback(
-        conversation_id=conversation_id,
-        user_id=current_user_id,
-        rating=rating,
-        feedback=feedback,
+    db["assistant_feedback"].insert_one(
+        {
+            "conversation_id": conversation_id,
+            "user_id": current_user_id,
+            "rating": rating,
+            "feedback": feedback,
+            "created_at": datetime.utcnow(),
+        }
     )
-    db.add(db_feedback)
     log_audit_event(
         db,
         action="assistant.feedback",
@@ -196,7 +207,6 @@ async def submit_feedback(
         resource_id=conversation_id,
         details={"rating": rating},
     )
-    db.commit()
 
     return {
         "message": "Feedback received",
@@ -208,7 +218,7 @@ async def submit_feedback(
 @router.delete("/conversation/{conversation_id}")
 async def delete_conversation(
     conversation_id: str,
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     token: Optional[str] = Depends(oauth2_scheme),
 ):
     """
@@ -216,15 +226,14 @@ async def delete_conversation(
     """
     current_user_id = _get_current_user_id(token, db)
 
-    message_query = db.query(AssistantMessage).filter(AssistantMessage.conversation_id == conversation_id)
-    feedback_query = db.query(AssistantFeedback).filter(AssistantFeedback.conversation_id == conversation_id)
-
+    msg_filters = {"conversation_id": conversation_id}
+    fb_filters = {"conversation_id": conversation_id}
     if current_user_id is not None:
-        message_query = message_query.filter(AssistantMessage.user_id == current_user_id)
-        feedback_query = feedback_query.filter(AssistantFeedback.user_id == current_user_id)
+        msg_filters["user_id"] = current_user_id
+        fb_filters["user_id"] = current_user_id
 
-    deleted_messages = message_query.delete(synchronize_session=False)
-    deleted_feedback = feedback_query.delete(synchronize_session=False)
+    deleted_messages = db["assistant_messages"].delete_many(msg_filters).deleted_count
+    deleted_feedback = db["assistant_feedback"].delete_many(fb_filters).deleted_count
     log_audit_event(
         db,
         action="assistant.clear_conversation",
@@ -233,7 +242,6 @@ async def delete_conversation(
         resource_id=conversation_id,
         details={"deleted_messages": deleted_messages, "deleted_feedback": deleted_feedback},
     )
-    db.commit()
 
     return {
         "message": "Conversation cleared",

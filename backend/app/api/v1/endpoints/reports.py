@@ -10,11 +10,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from app.core.auth_utils import require_roles
 from app.core.database import get_db
-from app.models import AssistantMessage, AuditLog, CveRecord, Scan
 
 router = APIRouter()
 
@@ -28,46 +27,41 @@ def _csv_bytes(headers: list[str], rows: list[dict]) -> bytes:
     return buffer.getvalue().encode("utf-8")
 
 
-def _build_rows_for_cves(db: Session) -> list[dict]:
-    records = db.query(CveRecord).order_by(CveRecord.risk_score.desc(), CveRecord.id.desc()).all()
+def _build_rows_for_cves(db: Database) -> list[dict]:
+    records = list(db["cve_records"].find().sort("risk_score", -1))
     return [
         {
-            "cve_id": record.cve_id,
-            "severity": record.severity,
-            "cvss_score": record.cvss_score,
-            "risk_score": record.risk_score,
-            "exploit_available": record.exploit_available,
-            "patch_available": record.patch_available,
-            "published_date": record.published_date.isoformat() if record.published_date else "",
-            "last_modified": record.last_modified.isoformat() if record.last_modified else "",
-            "description": record.description,
-            "affected_systems": record.affected_systems,
+            "cve_id": record.get("cve_id"),
+            "severity": record.get("severity"),
+            "cvss_score": record.get("cvss_score"),
+            "risk_score": record.get("risk_score"),
+            "exploit_available": record.get("exploit_available"),
+            "patch_available": record.get("patch_available"),
+            "published_date": record.get("published_date").isoformat() if record.get("published_date") else "",
+            "last_modified": record.get("last_modified").isoformat() if record.get("last_modified") else "",
+            "description": record.get("description"),
+            "affected_systems": record.get("affected_systems"),
         }
         for record in records
     ]
 
 
-def _build_rows_for_phishing(db: Session) -> list[dict]:
-    scans = (
-        db.query(Scan)
-        .filter(Scan.scan_type == "phishing")
-        .order_by(Scan.created_at.desc(), Scan.id.desc())
-        .all()
-    )
+def _build_rows_for_phishing(db: Database) -> list[dict]:
+    scans = list(db["scans"].find({"scan_type": "phishing"}).sort("created_at", -1))
 
     rows: list[dict] = []
     for scan in scans:
         try:
-            result = json.loads(scan.result)
-            input_data = json.loads(scan.input_data)
+            result = json.loads(scan.get("result", "{}"))
+            input_data = json.loads(scan.get("input_data", "{}"))
         except json.JSONDecodeError:
             result = {}
             input_data = {}
 
         rows.append(
             {
-                "scan_id": scan.id,
-                "created_at": scan.created_at.isoformat(),
+                "scan_id": str(scan.get("_id")),
+                "created_at": scan.get("created_at").isoformat() if scan.get("created_at") else "",
                 "sender_email": input_data.get("sender_email", ""),
                 "subject": input_data.get("subject", ""),
                 "url": input_data.get("url", ""),
@@ -81,34 +75,34 @@ def _build_rows_for_phishing(db: Session) -> list[dict]:
     return rows
 
 
-def _build_rows_for_assistant(db: Session) -> list[dict]:
-    messages = db.query(AssistantMessage).order_by(AssistantMessage.created_at.desc(), AssistantMessage.id.desc()).all()
+def _build_rows_for_assistant(db: Database) -> list[dict]:
+    messages = list(db["assistant_messages"].find().sort("created_at", -1))
     return [
         {
-            "message_id": message.id,
-            "conversation_id": message.conversation_id,
-            "user_id": message.user_id,
-            "role": message.role,
-            "created_at": message.created_at.isoformat(),
-            "content": message.content,
+            "message_id": str(message.get("_id")),
+            "conversation_id": message.get("conversation_id"),
+            "user_id": message.get("user_id"),
+            "role": message.get("role"),
+            "created_at": message.get("created_at").isoformat() if message.get("created_at") else "",
+            "content": message.get("content"),
         }
         for message in messages
     ]
 
 
-def _build_rows_for_audit(db: Session) -> list[dict]:
-    events = db.query(AuditLog).order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).all()
+def _build_rows_for_audit(db: Database) -> list[dict]:
+    events = list(db["audit_logs"].find().sort("created_at", -1))
     return [
         {
-            "event_id": event.id,
-            "created_at": event.created_at.isoformat(),
-            "user_id": event.user_id,
-            "action": event.action,
-            "resource_type": event.resource_type,
-            "resource_id": event.resource_id,
-            "status": event.status,
-            "severity": event.severity,
-            "details": event.details,
+            "event_id": str(event.get("_id")),
+            "created_at": event.get("created_at").isoformat() if event.get("created_at") else "",
+            "user_id": event.get("user_id"),
+            "action": event.get("action"),
+            "resource_type": event.get("resource_type"),
+            "resource_id": event.get("resource_id"),
+            "status": event.get("status"),
+            "severity": event.get("severity"),
+            "details": event.get("details"),
         }
         for event in events
     ]
@@ -117,7 +111,7 @@ def _build_rows_for_audit(db: Session) -> list[dict]:
 @router.get("/export")
 async def export_reports(
     scope: str = Query(default="all", pattern="^(all|cves|phishing|assistant|audit)$"),
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Export security reports as a ZIP bundle of CSV files."""
@@ -126,10 +120,10 @@ async def export_reports(
         "generated_at": datetime.utcnow().isoformat(),
         "scope": scope,
         "counts": {
-            "cves": db.query(CveRecord).count(),
-            "phishing_scans": db.query(Scan).filter(Scan.scan_type == "phishing").count(),
-            "assistant_messages": db.query(AssistantMessage).count(),
-            "audit_events": db.query(AuditLog).count(),
+            "cves": db["cve_records"].count_documents({}),
+            "phishing_scans": db["scans"].count_documents({"scan_type": "phishing"}),
+            "assistant_messages": db["assistant_messages"].count_documents({}),
+            "audit_events": db["audit_logs"].count_documents({}),
         },
     }
 
