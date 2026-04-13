@@ -26,12 +26,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS
-    ALLOWED_ORIGINS: str = (
-        "http://localhost:5173,"
-        "http://localhost:3000,"
-        "http://127.0.0.1:5173,"
-        "http://127.0.0.1:3000"
-    )
+    ALLOWED_ORIGINS: str = "https://sentinel-ai-flame.vercel.app"
 
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -43,7 +38,7 @@ class Settings(BaseSettings):
         os.getenv("MONGODB_URL")
         or os.getenv("MONGODB_URI")
         or os.getenv("MONGO_URI")
-        or os.getenv("DATABASE_URL", "mongodb://localhost:27017")
+        or os.getenv("DATABASE_URL", "")
     )
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "sentinelai")
 

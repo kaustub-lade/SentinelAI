@@ -6,6 +6,11 @@ SentinelAI is configured for:
 - Backend: Render (Docker)
 - Database: MongoDB Atlas
 
+Production URLs:
+
+- Frontend: https://sentinel-ai-flame.vercel.app
+- Backend: https://sentinelai-3glx.onrender.com
+
 ## 1. Push Latest Code
 
 Use your normal git flow:
@@ -32,16 +37,16 @@ git push origin main
 
 1. Import the repository in Vercel.
 2. Set the frontend root to the frontend app (if prompted).
-3. Set frontend API base URL to your Render backend URL.
+3. Set frontend API base URL to `https://sentinelai-3glx.onrender.com`.
 4. Deploy and copy your Vercel frontend URL.
 
 ## 4. Set CORS Correctly
 
-Set backend ALLOWED_ORIGINS to include your deployed frontend URL and local dev URL.
+Set backend ALLOWED_ORIGINS to include your deployed frontend URL.
 
 Example:
 
-https://your-frontend.vercel.app,http://localhost:5173
+https://sentinel-ai-flame.vercel.app
 
 ## 5. Smoke Test
 

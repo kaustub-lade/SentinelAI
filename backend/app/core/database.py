@@ -9,16 +9,24 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-mongo_client = MongoClient(
-    settings.MONGODB_URL,
-    serverSelectionTimeoutMS=5000,
-    connectTimeoutMS=5000,
-    socketTimeoutMS=5000,
+mongo_client = (
+    MongoClient(
+        settings.MONGODB_URL,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=5000,
+    )
+    if settings.MONGODB_URL
+    else None
 )
-mongo_db = mongo_client[settings.MONGODB_DB_NAME]
+mongo_db = mongo_client[settings.MONGODB_DB_NAME] if mongo_client else None
 
 
 def is_db_available() -> bool:
+    if mongo_client is None:
+        logger.error("MongoDB connectivity check failed: MONGODB_URL is not configured")
+        return False
+
     try:
         mongo_client.admin.command("ping")
         return True
@@ -28,6 +36,10 @@ def is_db_available() -> bool:
 
 
 def ensure_indexes() -> bool:
+    if mongo_db is None:
+        logger.error("MongoDB index initialization failed: MONGODB_URL is not configured")
+        return False
+
     try:
         mongo_db["users"].create_index([("email", ASCENDING)], unique=True)
         mongo_db["cve_records"].create_index([("cve_id", ASCENDING)], unique=True)

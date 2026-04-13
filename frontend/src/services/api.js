@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-// Default to the Vercel backend service prefix when no absolute API URL is set.
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/_/backend'
+// Production default points to Render backend if VITE_API_URL is not provided.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sentinelai-3glx.onrender.com'
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
