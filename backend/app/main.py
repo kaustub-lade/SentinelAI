@@ -33,9 +33,15 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
+    config_issues = settings.validate_production()
+    if config_issues:
+        joined = "; ".join(config_issues)
+        logger.error("Production configuration validation failed: %s", joined)
+        raise RuntimeError(f"Production configuration validation failed: {joined}")
+
     if not ensure_indexes():
-        logger.warning(
-            "Startup completed without database indexes. Check MONGODB_URL/MONGODB_DB_NAME in environment."
+        raise RuntimeError(
+            "Database initialization failed. Verify MongoDB connectivity and credentials."
         )
 
 # CORS configuration

@@ -33,6 +33,12 @@ git push origin main
    - ALLOWED_ORIGINS
 3. Confirm Render uses [backend/Dockerfile](backend/Dockerfile) and the repo root as docker context.
 
+Mandatory production policy:
+
+- No localhost origins
+- No default SECRET_KEY
+- Startup fails fast if required env values are missing or insecure
+
 ## 3. Deploy Frontend on Vercel
 
 1. Import the repository in Vercel.
@@ -64,3 +70,16 @@ Validate these flows in production:
 - Verify MONGODB_URL and MONGODB_DB_NAME on Render
 - Verify ALLOWED_ORIGINS includes the exact Vercel domain
 - Verify frontend API base URL points to Render backend
+
+## Required Render Variables (Strict)
+
+- SECRET_KEY: minimum 32 characters, non-default
+- MONGODB_URL: Atlas URI (mongodb+srv://...)
+- MONGODB_DB_NAME: sentinelai
+- ALLOWED_ORIGINS: https://sentinel-ai-flame.vercel.app
+
+Optional but recommended:
+
+- OPENAI_API_KEY
+- VIRUSTOTAL_API_KEY
+- NVD_API_KEY

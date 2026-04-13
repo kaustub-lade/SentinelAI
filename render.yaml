@@ -21,4 +21,4 @@ services:
       - key: MONGODB_DB_NAME
         value: sentinelai
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://sentinel-ai-flame.vercel.app

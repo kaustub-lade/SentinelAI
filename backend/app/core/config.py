@@ -57,5 +57,35 @@ class Settings(BaseSettings):
                 pass
 
         return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+    def validate_production(self) -> List[str]:
+        issues: List[str] = []
+
+        secret_key = (self.SECRET_KEY or "").strip()
+        if not secret_key:
+            issues.append("SECRET_KEY is required")
+        elif secret_key == "your-secret-key-change-in-production":
+            issues.append("SECRET_KEY must not use the default value")
+        elif len(secret_key) < 32:
+            issues.append("SECRET_KEY must be at least 32 characters")
+
+        mongo_url = (self.MONGODB_URL or "").strip()
+        if not mongo_url:
+            issues.append("MONGODB_URL (or MONGODB_URI/MONGO_URI/DATABASE_URL) is required")
+        elif not (mongo_url.startswith("mongodb://") or mongo_url.startswith("mongodb+srv://")):
+            issues.append("MONGODB_URL must start with mongodb:// or mongodb+srv://")
+
+        origins = self.allowed_origins
+        if not origins:
+            issues.append("ALLOWED_ORIGINS must include at least one frontend origin")
+
+        for origin in origins:
+            lowered = origin.lower()
+            if "localhost" in lowered or "127.0.0.1" in lowered:
+                issues.append("ALLOWED_ORIGINS must not include localhost/127.0.0.1 in production")
+            if not lowered.startswith("https://"):
+                issues.append(f"ALLOWED_ORIGINS must use https in production: {origin}")
+
+        return issues
     
 settings = Settings()
