@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState } from 'react'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import MalwareAnalysis from './pages/MalwareAnalysis'
 import PhishingDetection from './pages/PhishingDetection'
@@ -21,6 +22,15 @@ function App() {
             <Navigate to="/dashboard" /> : 
             <Login setIsAuthenticated={setIsAuthenticated} />
           } 
+        />
+
+        <Route
+          path="/register"
+          element={
+            isAuthenticated ?
+            <Navigate to="/dashboard" /> :
+            <Register setIsAuthenticated={setIsAuthenticated} />
+          }
         />
         
         <Route

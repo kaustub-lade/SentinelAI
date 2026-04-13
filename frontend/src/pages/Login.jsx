@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Shield, Mail, Lock } from 'lucide-react'
 import { authAPI } from '../services/api'
 
@@ -93,6 +94,12 @@ export default function Login({ setIsAuthenticated }) {
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-400">
               Use a registered account to sign in
+            </p>
+            <p className="text-sm text-slate-400 mt-2">
+              Need an account?{' '}
+              <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium">
+                Create one
+              </Link>
             </p>
           </div>
         </div>
