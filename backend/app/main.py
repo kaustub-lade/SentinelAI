@@ -3,6 +3,7 @@ SentinelAI - Main Application Entry Point
 AI-Powered Cybersecurity Platform
 """
 
+import logging
 import os
 from dotenv import load_dotenv
 
@@ -16,7 +17,9 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import ensure_indexes
+from app.core.database import ensure_indexes, is_db_available
+
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -30,7 +33,10 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
-    ensure_indexes()
+    if not ensure_indexes():
+        logger.warning(
+            "Startup completed without database indexes. Check MONGODB_URL/MONGODB_DB_NAME in environment."
+        )
 
 # CORS configuration
 app.add_middleware(
@@ -60,10 +66,12 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    db_ok = is_db_available()
     return {
-        "status": "healthy",
+        "status": "healthy" if db_ok else "degraded",
         "service": "SentinelAI API",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "database": "connected" if db_ok else "unavailable",
     }
 
 

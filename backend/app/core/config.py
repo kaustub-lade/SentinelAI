@@ -39,7 +39,12 @@ class Settings(BaseSettings):
     NVD_API_KEY: str = os.getenv("NVD_API_KEY", "")
     
     # Database
-    MONGODB_URL: str = os.getenv("MONGODB_URL") or os.getenv("DATABASE_URL", "mongodb://localhost:27017")
+    MONGODB_URL: str = (
+        os.getenv("MONGODB_URL")
+        or os.getenv("MONGODB_URI")
+        or os.getenv("MONGO_URI")
+        or os.getenv("DATABASE_URL", "mongodb://localhost:27017")
+    )
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "sentinelai")
 
     @property
