@@ -2,31 +2,34 @@
 
 ## Before You Start
 - [ ] Code pushed to GitHub repository
-- [ ] Have OpenAI API key (optional)
-- [ ] Have VirusTotal API key (optional)
-- [ ] Created Vercel account
+- [ ] Have MongoDB Atlas URI and DB name
+- [ ] Have strong production SECRET_KEY (32+ chars)
+- [ ] Created Render and Vercel accounts
 
-## Part 1: Configure Backend Service
+## Part 1: Configure Backend Service (Render)
 
-1. Deploy backend service in Vercel
-   - [ ] Keep backend entrypoint set to `backend`
-   - [ ] Confirm routePrefix is `/_/backend`
+1. Deploy backend service in Render
+   - [ ] Use [render.yaml](render.yaml)
+   - [ ] Confirm Dockerfile path is `backend/Dockerfile`
 
 2. Set Environment Variables
-   - [ ] `OPENAI_API_KEY` = your OpenAI key
-   - [ ] `VIRUSTOTAL_API_KEY` = your VirusTotal key  
-   - [ ] `SECRET_KEY` = (auto-generate or use a random 32-char string)
-   - [ ] `ALLOWED_ORIGINS` = (set if your backend enforces CORS)
+- [ ] `MONGODB_URL` = Atlas URI
+- [ ] `MONGODB_DB_NAME` = `sentinelai`
+- [ ] `SECRET_KEY` = random 32+ char secret
+- [ ] `ALLOWED_ORIGINS` = `https://sentinel-ai-flame.vercel.app`
+- [ ] `OPENAI_API_KEY` = optional
+- [ ] `VIRUSTOTAL_API_KEY` = optional
+- [ ] `NVD_API_KEY` = optional
 
 3. Wait for Deployment
-   - [ ] Wait 5-10 minutes for build to complete
-   - [ ] Test backend route: `/_/backend/docs`
+   - [ ] Wait for build to complete
+   - [ ] Test backend route: `https://sentinelai-3glx.onrender.com/health`
 
-## Part 2: Deploy Frontend on Vercel
+## Part 2: Deploy Frontend (Vercel)
 
 1. Update Configuration
-   - [ ] Edit [vercel.json](vercel.json)
-   - [ ] Commit and push: `git add . && git commit -m "Update Render URL" && git push`
+   - [ ] Ensure `VITE_API_URL` points to `https://sentinelai-3glx.onrender.com`
+   - [ ] Confirm frontend deploys from `frontend` folder
 
 2. Deploy to Vercel
    - [ ] Go to https://vercel.com and log in
@@ -35,55 +38,49 @@
    - [ ] Confirm project settings and deploy
 
 3. Set Environment Variable
-   - [ ] Optional: add `VITE_API_URL` = `/_/backend`
-   - [ ] If not set, API traffic uses the default backend service prefix
+   - [ ] `VITE_API_URL` = `https://sentinelai-3glx.onrender.com`
 
 4. Deploy
    - [ ] Click "Deploy"
-   - [ ] Wait 3-5 minutes for build
-   - [ ] Copy your Vercel URL: `https://your-project.vercel.app`
+   - [ ] Copy your Vercel URL: `https://sentinel-ai-flame.vercel.app`
 
-## Part 3: Final Configuration
+## Part 3: Production Verification
 
-1. Update Backend CORS
-    - [ ] Update `ALLOWED_ORIGINS` with your Vercel URL if needed:
+1. Run automated backend smoke checks
+   - [ ] Command:
      ```
-     https://your-project.vercel.app,http://localhost:5173
+     python backend/scripts/prod_smoke_check.py --backend-url https://sentinelai-3glx.onrender.com
      ```
-    - [ ] Save changes (backend will auto-redeploy)
 
 2. Test Your Deployment
-   - [ ] Visit your Vercel URL
-   - [ ] Try to log in or use features
-   - [ ] Check browser console for errors
+   - [ ] Visit frontend: `https://sentinel-ai-flame.vercel.app`
+   - [ ] Log in and test key flows
    - [ ] Check Render logs if issues occur
 
 ## URLs to Save
 
-- **Frontend (Vercel)**: ___________________________
-- **Backend**: ___________________________
-- **API Docs**: /_/backend/docs
+- **Frontend (Vercel)**: https://sentinel-ai-flame.vercel.app
+- **Backend (Render)**: https://sentinelai-3glx.onrender.com
+- **API Docs**: https://sentinelai-3glx.onrender.com/docs
 
 ## Common Issues
 
 **Backend won't start?**
-- Check Vercel service logs for Python errors
-- Verify requirements.txt is in backend/ folder
-- Make sure Python 3.11+ is used
+- Check Render logs for startup validation errors
+- Verify `MONGODB_URL`, `SECRET_KEY`, and `ALLOWED_ORIGINS` are set
+- Confirm `ALLOWED_ORIGINS` does not include localhost
 
 - **Frontend shows "Connection Error"?**
-- Verify `vercel.json` has the correct service entrypoints
-- If using env vars, verify VITE_API_URL is set in Vercel
-- Ensure backend ALLOWED_ORIGINS includes Vercel URL if CORS is enforced
+- Verify `VITE_API_URL` is `https://sentinelai-3glx.onrender.com`
+- Check browser Network tab for failing API requests
 
 **CORS Errors?**
-- Double-check ALLOWED_ORIGINS includes your Vercel URL
-- Make sure there are no trailing slashes
-- Wait a few minutes for backend to redeploy after changing env vars
+- Ensure `ALLOWED_ORIGINS=https://sentinel-ai-flame.vercel.app`
+- Remove trailing slash in origin value
 
 - **Backend is slow/times out?**
-- Vercel service cold starts can occur on first request
-- First request after sleep takes 30-60 seconds (cold start)
+- Render free tier can cold start on first request
+- First request after sleep can take 30-60 seconds
 
 ## Optional: Custom Domain
 

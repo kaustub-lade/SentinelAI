@@ -1,71 +1,81 @@
-# SentinelAI Deployment Guide
+# SentinelAI Deployment Guide (Secure Production)
 
-This guide deploys SentinelAI using Vercel experimental services for frontend and backend.
+This guide deploys SentinelAI with:
+
+- Frontend on Vercel: https://sentinel-ai-flame.vercel.app
+- Backend on Render: https://sentinelai-3glx.onrender.com
+- MongoDB Atlas for persistent storage
 
 ## Prerequisites
 
 - GitHub repository with this project pushed
+- Render account
 - Vercel account
-- Optional API keys: OpenAI and VirusTotal
+- MongoDB Atlas URI and database name
+- Strong production SECRET_KEY (32+ characters)
 
-## Step 1: Configure Backend Service
+## Step 1: Configure Backend Service (Render)
 
-1. Keep the backend service in [vercel.json](vercel.json) pointing at `backend`.
-2. Add environment variables:
-   - `OPENAI_API_KEY`
-   - `VIRUSTOTAL_API_KEY`
-   - `SECRET_KEY`
-   - `ALLOWED_ORIGINS` if your backend checks CORS
-3. Confirm the backend entrypoint is `backend`.
+1. Create/update the web service with [render.yaml](render.yaml).
+2. Set environment variables in Render:
+   - `MONGODB_URL` = Atlas URI
+   - `MONGODB_DB_NAME` = `sentinelai`
+   - `SECRET_KEY` = random secure key (32+ chars)
+   - `ALLOWED_ORIGINS` = `https://sentinel-ai-flame.vercel.app`
+   - Optional: `OPENAI_API_KEY`, `VIRUSTOTAL_API_KEY`, `NVD_API_KEY`
+3. Confirm startup command:
+   - `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
-## Step 2: Configure Vercel Services
+## Step 2: Configure Frontend (Vercel)
 
-1. Open [vercel.json](vercel.json).
-2. Confirm the frontend entrypoint is `frontend` and the backend route prefix is `/_/backend`.
-3. Commit and push.
+1. Import repository in Vercel.
+2. Use `frontend` as the app root.
+3. Set frontend env variable:
+   - `VITE_API_URL=https://sentinelai-3glx.onrender.com`
+4. Deploy.
 
-## Step 3: Deploy Frontend to Vercel
+## Step 3: Run Production Smoke Checks
 
-1. Go to Vercel and import your GitHub repository.
-2. Vercel will use [vercel.json](vercel.json).
-3. Click Deploy.
-4. Copy your Vercel URL.
+Run after every backend deploy:
 
-## Step 4: Update Backend CORS
-
-Set this in backend environment variables if you need CORS:
-
-```text
-ALLOWED_ORIGINS=https://your-project.vercel.app,http://localhost:5173
+```bash
+python backend/scripts/prod_smoke_check.py --backend-url https://sentinelai-3glx.onrender.com
 ```
 
-Save and allow Render to redeploy.
+Expected outcome:
 
-## API Routing Model
+- Health endpoint passes
+- Register/login/me pass
+- Vulnerability stats pass
+- Phishing URL check passes
+- Assistant chat passes
 
-- Frontend calls `/_/backend/api/v1/...` by default.
-- In production, Vercel routes the backend service at `/_/backend`.
-- In local dev, Vite proxy forwards `/api/*` to `http://localhost:8000`.
+## Step 4: Security Rotation Routine
 
-You can also set `VITE_API_URL` in Vercel if you prefer absolute API URLs.
+After any credential exposure or every scheduled rotation window:
 
-## Testing
+1. Rotate MongoDB Atlas DB user password.
+2. Update Render `MONGODB_URL` with new credentials.
+3. Trigger backend redeploy.
+4. Re-run smoke checks.
 
-1. Open your Vercel URL.
-2. Check app pages and API-backed views.
-3. If requests fail, inspect browser network and Render logs.
+## Production Policy
+
+- No localhost origins in production.
+- No default SECRET_KEY.
+- Startup fails fast when production env validation fails.
 
 ## Troubleshooting
 
 ### API calls return 404 or fail
 
-- Verify the service entrypoints and route prefixes in `vercel.json`.
-- Confirm frontend is deployed from the latest commit.
+- Confirm frontend `VITE_API_URL` points to Render backend.
+- Confirm backend route prefix is `/api/v1`.
 
 ### CORS blocked
 
-- Confirm `ALLOWED_ORIGINS` includes your exact Vercel URL.
-- Do not include trailing slash in origins.
+- Confirm `ALLOWED_ORIGINS=https://sentinel-ai-flame.vercel.app`.
+- Do not include trailing slash.
 
 ### Backend cold starts
 
@@ -73,7 +83,7 @@ You can also set `VITE_API_URL` in Vercel if you prefer absolute API URLs.
 
 ## Production Recommendations
 
-1. Move from SQLite to managed PostgreSQL on Render.
-2. Use a long random `SECRET_KEY`.
-3. Add monitoring and error tracking.
+1. Keep MongoDB Atlas credentials rotated.
+2. Add monitoring and error tracking.
+3. Add CI gate to run smoke checks automatically.
 4. Use paid tiers for predictable performance.
