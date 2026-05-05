@@ -1,5 +1,6 @@
 import logging
 
+import certifi
 from fastapi import HTTPException, status
 from pymongo import ASCENDING, MongoClient
 from pymongo.errors import PyMongoError
@@ -12,9 +13,10 @@ logger = logging.getLogger(__name__)
 mongo_client = (
     MongoClient(
         settings.MONGODB_URL,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000,
-        socketTimeoutMS=5000,
+        serverSelectionTimeoutMS=30000,
+        connectTimeoutMS=20000,
+        socketTimeoutMS=20000,
+        tlsCAFile=certifi.where(),
     )
     if settings.MONGODB_URL
     else None
