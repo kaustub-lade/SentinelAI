@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 mongo_client = (
     MongoClient(
         settings.MONGODB_URL,
+        tls=True,
         serverSelectionTimeoutMS=30000,
         connectTimeoutMS=20000,
         socketTimeoutMS=20000,
