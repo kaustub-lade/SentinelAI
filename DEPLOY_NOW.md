@@ -23,7 +23,8 @@ git push origin main
 
 1. In Render, create or update the backend web service using [render.yaml](render.yaml).
 2. Ensure these backend environment variables are set in Render:
-   - OPENAI_API_KEY
+   - GROQ_API_KEY
+   - GROQ_MODEL=llama-3.3-70b-versatile
    - VIRUSTOTAL_API_KEY
    - SECRET_KEY
    - ALGORITHM=HS256
@@ -80,6 +81,7 @@ Validate these flows in production:
 
 Optional but recommended:
 
-- OPENAI_API_KEY
+- GROQ_API_KEY
+- GROQ_MODEL
 - VIRUSTOTAL_API_KEY
 - NVD_API_KEY

@@ -17,7 +17,8 @@
 - [ ] `MONGODB_DB_NAME` = `sentinelai`
 - [ ] `SECRET_KEY` = random 32+ char secret
 - [ ] `ALLOWED_ORIGINS` = `https://sentinel-ai-flame.vercel.app`
-- [ ] `OPENAI_API_KEY` = optional
+- [ ] `GROQ_API_KEY` = optional
+- [ ] `GROQ_MODEL` = `llama-3.3-70b-versatile` (recommended)
 - [ ] `VIRUSTOTAL_API_KEY` = optional
 - [ ] `NVD_API_KEY` = optional
 

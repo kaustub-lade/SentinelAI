@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "https://sentinel-ai-flame.vercel.app"
 
     # API Keys
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
     NVD_API_KEY: str = os.getenv("NVD_API_KEY", "")
     

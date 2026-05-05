@@ -22,7 +22,7 @@ This guide deploys SentinelAI with:
    - `MONGODB_DB_NAME` = `sentinelai`
    - `SECRET_KEY` = random secure key (32+ chars)
    - `ALLOWED_ORIGINS` = `https://sentinel-ai-flame.vercel.app`
-   - Optional: `OPENAI_API_KEY`, `VIRUSTOTAL_API_KEY`, `NVD_API_KEY`
+   - Optional: `GROQ_API_KEY`, `GROQ_MODEL`, `VIRUSTOTAL_API_KEY`, `NVD_API_KEY`
 3. Confirm startup command:
    - `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
