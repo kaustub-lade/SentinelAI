@@ -237,6 +237,22 @@ Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI
 
 ---
 
+## Optional: Run with Docker Compose (local dev)
+
+This repository includes a `docker-compose.yml` that starts `redis`, `mongo`, the `backend` service and a `worker` process (Celery). This is convenient for developing background tasks and YARA scanning locally.
+
+From the project root run:
+
+```bash
+docker compose up --build
+```
+
+Notes:
+- The backend will be available at `http://localhost:8000`.
+- Redis runs on port `6379` and MongoDB on `27017` by default.
+- The worker service runs a Celery worker attached to the `default` queue.
+
+
 ## Support
 
 For issues or questions:

@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    ports:
+      - '8000:8000'
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MONGODB_URL=mongodb://mongo:27017/sentinelai
+    depends_on:
+      - redis
+      - mongo
+
+  worker:
+    build: ./backend
+    command: celery -A celery_app.celery worker --loglevel=info -Q default
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MONGODB_URL=mongodb://mongo:27017/sentinelai
+    depends_on:
+      - redis
+      - mongo
+
+volumes:
+  mongo_data:

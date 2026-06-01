@@ -14,12 +14,20 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+
+from app.core.limiter import limiter
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import ensure_indexes, is_db_available
+from app.core.logger import get_logger
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,6 +37,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Attach rate limiter middleware
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse({"detail": "Rate limit exceeded"}, status_code=429))
 
 
 @app.on_event("startup")
@@ -79,6 +92,13 @@ async def health_check():
         "version": "1.0.0",
         "database": "connected" if db_ok else "unavailable",
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint (basic)."""
+    resp = generate_latest()
+    return JSONResponse(content=resp, media_type=CONTENT_TYPE_LATEST)
 
 
 # Include API router
