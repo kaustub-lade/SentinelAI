@@ -55,7 +55,7 @@ def login(credentials: UserLogin, request: Request, db: Database = Depends(get_d
         )
 
     access_token = create_access_token(subject=str(user["_id"]))
-    refresh_token = create_refresh_token(subject=str(user["_id\"]))
+    refresh_token = create_refresh_token(subject=str(user["_id"]))
     # store refresh token hash in DB for revocation (store token itself hashed)
     db["users"].update_one({"_id": user["_id"]}, {"$set": {"refresh_token": refresh_token}})
     log_audit_event(
