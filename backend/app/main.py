@@ -53,8 +53,8 @@ def on_startup():
         raise RuntimeError(f"Production configuration validation failed: {joined}")
 
     if not ensure_indexes():
-        raise RuntimeError(
-            "Database initialization failed. Verify MongoDB connectivity and credentials."
+        logger.warning(
+            "Database initialization failed during startup. The API will still start, but DB-backed endpoints may return 503 until MongoDB is reachable."
         )
 
 # CORS configuration
