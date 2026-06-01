@@ -7,6 +7,13 @@ import joblib
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+)
 
 FEATURE_NAMES = [
     "text_length",
@@ -107,7 +114,46 @@ class PhishingModelService:
             y.append(1 if risk_score + noise >= 0.52 else 0)
 
         model = LogisticRegression(max_iter=3000, class_weight="balanced")
-        model.fit(np.array(X), np.array(y))
+        X = np.array(X)
+        y = np.array(y)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            test_size=0.2,
+            random_state=42,
+            stratify=y,
+        )
+
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+
+        print(f"Accuracy : {accuracy:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall   : {recall:.4f}")
+        print(f"F1 Score : {f1:.4f}")
+
+        metrics = {
+            "accuracy": round(float(accuracy), 4),
+            "precision": round(float(precision), 4),
+            "recall": round(float(recall), 4),
+            "f1_score": round(float(f1), 4),
+            "training_samples": len(X_train),
+            "testing_samples": len(X_test),
+        }
+
+        metrics_path = self.model_path.parent / "phishing_metrics.json"
+
+        with open(metrics_path, "w") as f:
+            json.dump(metrics, f, indent=4)
+
+        print(f"Metrics saved to {metrics_path}")
 
         joblib.dump(model, self.model_path)
         self.model = model
