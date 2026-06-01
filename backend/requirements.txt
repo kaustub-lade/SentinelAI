@@ -37,6 +37,6 @@ pefile==2024.8.26
 # Testing
 pytest==7.4.0
 pytest-asyncio==0.21.0
-slowapi==0.1.4
+slowapi==0.1.9
 prometheus-client==0.16.0
 structlog==23.3.0
