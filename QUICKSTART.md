@@ -57,9 +57,9 @@ Start the backend server:
 uvicorn app.main:app --reload
 ```
 
-**Backend should now be running at:** `http://localhost:8000`
+**Backend should now be running at:** `https://sentinelai-3glx.onrender.com`
 
-API Documentation: `http://localhost:8000/docs`
+API Documentation: `https://sentinelai-3glx.onrender.com/docs`
 
 ---
 
@@ -88,7 +88,7 @@ copy .env.example .env   # Windows
 The `.env` file should contain:
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=https://sentinelai-3glx.onrender.com
 ```
 
 Start the development server:
@@ -97,13 +97,13 @@ Start the development server:
 npm run dev
 ```
 
-**Frontend should now be running at:** `http://localhost:5173`
+**Frontend should now be running at:** `https://sentinel-ai-flame.vercel.app`
 
 ---
 
 ### 3. Access the Application
 
-1. Open your browser and go to: **http://localhost:5173**
+1. Open your browser and go to: **https://sentinel-ai-flame.vercel.app**
 2. You'll see the login page
 3. **Login with any email/password** (demo mode - authentication is mocked)
 4. Explore the features:
@@ -150,7 +150,7 @@ http://suspicious-link.tk/verify
 
 ### Backend Issues
 
-**Port 8000 already in use:**
+**Backend port already in use:**
 ```bash
 # Change port in command
 uvicorn app.main:app --reload --port 8001
@@ -164,14 +164,14 @@ pip install -r requirements.txt
 
 ### Frontend Issues
 
-**Port 5173 already in use:**
+**Frontend port already in use:**
 ```bash
 # Kill the process or change port in vite.config.js
 npm run dev -- --port 3000
 ```
 
 **API connection errors:**
-- Make sure backend is running on port 8000
+- Make sure the backend service is running
 - Check `.env` file has correct `VITE_API_URL`
 
 **Module not found:**
@@ -218,7 +218,7 @@ FastAPI automatically reloads when you change Python files (with `--reload` flag
 Vite automatically reloads when you change React files
 
 ### API Testing
-Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI)
+Visit `https://sentinelai-3glx.onrender.com/docs` for interactive API documentation (Swagger UI)
 
 ### Adding New Features
 1. **Backend**: Add endpoints in `backend/app/api/v1/endpoints/`
@@ -248,7 +248,7 @@ docker compose up --build
 ```
 
 Notes:
-- The backend will be available at `http://localhost:8000`.
+- The backend service will be available at the live deployment URL above.
 - Redis runs on port `6379` and MongoDB on `27017` by default.
 - The worker service runs a Celery worker attached to the `default` queue.
 

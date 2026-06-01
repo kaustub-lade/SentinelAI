@@ -34,9 +34,9 @@ echo ====================================
 echo  Starting Vite Development Server
 echo ====================================
 echo.
-echo Frontend will be available at: http://localhost:5173
+echo Frontend service is starting.
 echo.
-echo Make sure backend is running on port 8000
+echo Make sure the backend service is running
 echo Press Ctrl+C to stop the server
 echo.
 

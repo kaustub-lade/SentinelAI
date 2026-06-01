@@ -16,9 +16,9 @@ echo.
 
 echo This will start both backend and frontend servers in separate windows.
 echo.
-echo Backend (FastAPI):  http://localhost:8000
-echo Frontend (React):   http://localhost:5173
-echo API Docs:           http://localhost:8000/docs
+echo Backend (FastAPI):  starting in a separate window
+echo Frontend (React):   starting in a separate window
+echo API Docs:           available from the backend service once it starts
 echo.
 echo Press any key to continue...
 pause > nul
@@ -38,7 +38,7 @@ echo.
 echo  ✅ Both servers are starting in separate windows
 echo.
 echo  📍 Once servers are ready:
-echo     1. Open http://localhost:5173 in your browser
+echo     1. Open the frontend URL shown by the Vite server in your browser
 echo     2. Login with any email/password (demo mode)
 echo     3. Explore all features!
 echo.

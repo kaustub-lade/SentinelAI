@@ -42,8 +42,8 @@ echo ====================================
 echo  Starting FastAPI Server
 echo ====================================
 echo.
-echo Backend will be available at: http://localhost:8000
-echo API Documentation at: http://localhost:8000/docs
+echo Backend service is starting.
+echo API documentation will be available from the backend service once it starts.
 echo.
 echo Press Ctrl+C to stop the server
 echo.
