@@ -1,7 +1,3 @@
-"""
-Dashboard Endpoints - Overview and Analytics
-"""
-
 import random
 from datetime import datetime, timedelta
 
@@ -15,18 +11,41 @@ router = APIRouter()
 
 
 @router.get("/stats")
-async def get_dashboard_stats():
+async def get_dashboard_stats(
+    db: Database = Depends(get_db),
+):
     """
     Get overall security statistics for dashboard
     """
+
+    total_scans = db["scans"].count_documents({})
+
+    malware_detected = db["scans"].count_documents(
+        {
+            "scan_type": "malware",
+            "verdict": {"$in": ["Malicious", "Suspicious"]},
+        }
+    )
+
+    critical_alerts = db["scans"].count_documents(
+        {
+            "threat_level": {"$in": ["Critical", "High"]},
+        }
+    )
+
+    risk_score = min(
+        100,
+        malware_detected * 10 + critical_alerts * 5,
+    )
+
     return {
-        "total_threats_today": random.randint(10, 20),
-        "critical_alerts": random.randint(1, 5),
-        "phishing_attempts": random.randint(5, 15),
-        "malware_detected": random.randint(2, 8),
-        "vulnerabilities_found": random.randint(15, 30),
-        "risk_score": random.randint(60, 85),
-        "last_updated": datetime.now().isoformat()
+        "total_threats_today": total_scans,
+        "critical_alerts": critical_alerts,
+        "phishing_attempts": 0,
+        "malware_detected": malware_detected,
+        "vulnerabilities_found": 0,
+        "risk_score": risk_score,
+        "last_updated": datetime.now().isoformat(),
     }
 
 
