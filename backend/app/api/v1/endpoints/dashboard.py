@@ -50,58 +50,151 @@ async def get_dashboard_stats(
 
 
 @router.get("/recent-threats")
-async def get_recent_threats():
+async def get_recent_threats( 
+    db: Database = Depends(get_db),
+):
     """
     Get recent threat detections
     """
-    threat_types = ["Malware", "Phishing", "Suspicious Activity", "Vulnerability"]
-    severities = ["Critical", "High", "Medium", "Low"]
-    
+
+    scans = list(
+        db["scans"]
+        .find()
+        .sort("created_at", -1)
+        .limit(20)
+    )
+
     threats = []
-    for i in range(10):
-        threats.append({
-            "id": f"threat_{i+1}",
-            "type": random.choice(threat_types),
-            "severity": random.choice(severities),
-            "description": f"Detected {random.choice(threat_types).lower()} attempt",
-            "source_ip": f"192.168.{random.randint(1,255)}.{random.randint(1,255)}",
-            "timestamp": (datetime.now() - timedelta(hours=random.randint(0, 24))).isoformat(),
-            "status": random.choice(["Blocked", "Quarantined", "Under Investigation"])
-        })
-    
+
+    for scan in scans:
+        created_at = scan.get("created_at")
+
+        threat_type = (
+            "Phishing"
+            if scan.get("scan_type") == "phishing"
+            else "Malware"
+        )
+
+        verdict = str(scan.get("verdict", "")).lower()
+
+        if "malicious" in verdict:
+            severity = "Critical"
+        elif "suspicious" in verdict:
+            severity = "High"
+        else:
+            severity = "Low"
+
+        threats.append(
+            {
+                "id": str(scan.get("_id")),
+                "type": threat_type,
+                "severity": severity,
+                "description": f"{threat_type} analysis completed",
+                "source_ip": "N/A",
+                "timestamp": (
+                    created_at.isoformat()
+                    if hasattr(created_at, "isoformat")
+                    else str(created_at)
+                ),
+                "status": (
+                    "Blocked"
+                    if severity in ["Critical", "High"]
+                    else "Allowed"
+                ),
+            }
+        )
+
     return {"threats": threats}
 
 
 @router.get("/threat-timeline")
-async def get_threat_timeline():
+async def get_threat_timeline(
+    db: Database = Depends(get_db),
+):
     """
     Get threat detection timeline for charts
     """
+
     timeline = []
+
     for i in range(24):
-        hour = datetime.now() - timedelta(hours=23-i)
-        timeline.append({
-            "timestamp": hour.isoformat(),
-            "malware": random.randint(0, 5),
-            "phishing": random.randint(0, 8),
-            "vulnerabilities": random.randint(0, 3),
-            "other": random.randint(0, 2)
-        })
-    
+        hour_start = datetime.now() - timedelta(hours=23 - i)
+        hour_end = hour_start + timedelta(hours=1)
+
+        malware_count = db["scans"].count_documents(
+            {
+                "scan_type": "malware",
+                "created_at": {
+                    "$gte": hour_start,
+                    "$lt": hour_end,
+                },
+            }
+        )
+
+        phishing_count = db["scans"].count_documents(
+            {
+                "scan_type": "phishing",
+                "created_at": {
+                    "$gte": hour_start,
+                    "$lt": hour_end,
+                },
+            }
+        )
+
+        timeline.append(
+            {
+                "timestamp": hour_start.isoformat(),
+                "malware": malware_count,
+                "phishing": phishing_count,
+                "vulnerabilities": 0,
+                "other": 0,
+            }
+        )
+
     return {"timeline": timeline}
 
 
 @router.get("/threat-distribution")
-async def get_threat_distribution():
+async def get_threat_distribution(
+    db: Database = Depends(get_db),
+):
     """
     Get threat type distribution for pie charts
     """
+
+    phishing_count = db["scans"].count_documents(
+        {"scan_type": "phishing"}
+    )
+
+    malware_count = db["scans"].count_documents(
+        {"scan_type": "malware"}
+    )
+
+    malicious_count = db["scans"].count_documents(
+        {
+            "verdict": {
+                "$in": ["Malicious", "Suspicious"]
+            }
+        }
+    )
+
     return {
         "distribution": [
-            {"name": "Phishing", "value": random.randint(30, 40), "color": "#ef4444"},
-            {"name": "Malware", "value": random.randint(20, 30), "color": "#f59e0b"},
-            {"name": "Vulnerabilities", "value": random.randint(15, 25), "color": "#eab308"},
-            {"name": "Suspicious Activity", "value": random.randint(10, 20), "color": "#3b82f6"}
+            {
+                "name": "Phishing",
+                "value": phishing_count,
+                "color": "#ef4444",
+            },
+            {
+                "name": "Malware",
+                "value": malware_count,
+                "color": "#f59e0b",
+            },
+            {
+                "name": "Malicious/Suspicious",
+                "value": malicious_count,
+                "color": "#eab308",
+            },
         ]
     }
 

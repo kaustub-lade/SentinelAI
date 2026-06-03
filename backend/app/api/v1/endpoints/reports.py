@@ -1,7 +1,3 @@
-"""
-Report Export Endpoints - Download security reports as CSV/ZIP bundles.
-"""
-
 import csv
 import io
 import json
@@ -10,10 +6,13 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
+from bson import ObjectId
+from fastapi import HTTPException
 from pymongo.database import Database
 
 from app.core.auth_utils import require_roles
 from app.core.database import get_db
+from app.services.pdf_report import generate_malware_pdf
 
 router = APIRouter()
 
@@ -166,4 +165,28 @@ async def export_reports(
         zip_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+@router.get("/malware-pdf/{scan_id}")
+async def generate_malware_report(
+    scan_id: str,
+    db: Database = Depends(get_db),
+):
+    scan = db["scans"].find_one({"_id": ObjectId(scan_id)})
+
+    if not scan:
+        raise HTTPException(
+            status_code=404,
+            detail="Scan not found",
+        )
+
+    pdf_buffer = generate_malware_pdf(scan)
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition":
+            f"attachment; filename=malware_report_{scan_id}.pdf"
+        },
     )

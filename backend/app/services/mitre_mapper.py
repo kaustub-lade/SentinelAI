@@ -9,7 +9,10 @@ import json
 import os
 from typing import Dict, List, Any
 
-MITRE_DATA_PATH = os.getenv("MITRE_DATA_PATH", "./backend/app/data/enterprise-attack.json")
+MITRE_DATA_PATH = os.getenv(
+    "MITRE_DATA_PATH",
+    "app/data/enterprise-attack.json"
+)
 
 
 def load_mitre_data(path: str = MITRE_DATA_PATH) -> Dict[str, Any] | None:
@@ -30,6 +33,42 @@ HEURISTIC_MAP = {
     "powershell": ["T1059.001"],
     "cmd.exe": ["T1059.003"],
     "rundll32": ["T1218"],
+
+    "RegSetValue": ["T1112"],
+    "RegCreateKey": ["T1112"],
+    "RegOpenKey": ["T1112"],
+
+    "WriteProcessMemory": ["T1055"],
+    "CreateRemoteThread": ["T1055"],
+    "VirtualAllocEx": ["T1055"],
+
+    "URLDownloadToFile": ["T1105"],
+    "WinHttpOpen": ["T1071"],
+    "InternetOpen": ["T1071"],
+    "InternetConnect": ["T1071"],
+
+    "socket": ["T1071"],
+    "connect": ["T1071"],
+
+    "GetAsyncKeyState": ["T1056"],
+    "SetWindowsHookEx": ["T1056"],
+
+    "CreateService": ["T1543"],
+    "OpenSCManager": ["T1543"],
+
+    "TaskScheduler": ["T1053"],
+    "schtasks": ["T1053"],
+
+    "lsass": ["T1003"],
+    "MiniDumpWriteDump": ["T1003"],
+
+    "net user": ["T1136"],
+    "net localgroup": ["T1098"],
+
+    "certutil": ["T1140"],
+    "bitsadmin": ["T1197"],
+
+    "wmic": ["T1047"],
 }
 
 
