@@ -117,7 +117,7 @@ async def get_threat_timeline(
 
     timeline = []
 
-    for i in range(24):
+    for i in range(7):
         hour_start = datetime.now() - timedelta(hours=23 - i)
         hour_end = hour_start + timedelta(hours=1)
 
@@ -200,21 +200,41 @@ async def get_threat_distribution(
 
 
 @router.get("/geographic-threats")
-async def get_geographic_threats():
-    """
-    Get geographic distribution of threats
-    """
-    countries = ["USA", "China", "Russia", "Brazil", "India", "Germany", "UK"]
-    
-    geo_data = []
-    for country in countries:
-        geo_data.append({
-            "country": country,
-            "threat_count": random.randint(5, 50),
-            "severity": random.choice(["High", "Medium", "Low"])
-        })
-    
-    return {"geographic_data": geo_data}
+async def get_geographic_threats(
+    db: Database = Depends(get_db),
+):
+    return {
+        "geographic_data": [
+            {
+                "country": "Critical",
+                "threat_count": db["scans"].count_documents(
+                    {"threat_level": "Critical"}
+                ),
+                "severity": "Critical",
+            },
+            {
+                "country": "High",
+                "threat_count": db["scans"].count_documents(
+                    {"threat_level": "High"}
+                ),
+                "severity": "High",
+            },
+            {
+                "country": "Medium",
+                "threat_count": db["scans"].count_documents(
+                    {"threat_level": "Medium"}
+                ),
+                "severity": "Medium",
+            },
+            {
+                "country": "Low",
+                "threat_count": db["scans"].count_documents(
+                    {"threat_level": "Low"}
+                ),
+                "severity": "Low",
+            },
+        ]
+    }
 
 
 @router.get("/system-health")

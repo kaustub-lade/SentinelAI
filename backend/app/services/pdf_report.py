@@ -21,21 +21,6 @@ def generate_malware_pdf(scan: dict) -> BytesIO:
         Paragraph("SentinelAI Malware Analysis Report", styles["Title"])
     )
 
-    elements.append(
-    Paragraph("Behavioral Indicators", styles["Heading2"])
-)
-    behavior = scan.get("behavioral_indicators", {})
-
-    for key, value in behavior.items():
-        elements.append(
-            Paragraph(
-                f"{key}: {value}",
-                styles["BodyText"]
-            )
-        )
-
-    elements.append(Spacer(1, 12))
-
     mitre = scan.get("mitre_techniques", [])
 
     if mitre:
@@ -108,6 +93,54 @@ def generate_malware_pdf(scan: dict) -> BytesIO:
             styles["BodyText"]
         )
     )
+
+    elements.append(Spacer(1, 12))
+
+    elements.append(
+    Paragraph("Behavioral Indicators", styles["Heading2"])
+    )
+    behavior = scan.get("behavioral_indicators", {})
+
+    for key, value in behavior.items():
+        elements.append(
+            Paragraph(
+                f"{key}: {value}",
+                styles["BodyText"]
+            )
+        )
+
+    elements.append(Spacer(1, 12))
+
+    elements.append(
+    Paragraph("Indicators of Compromise (IOCs)", styles["Heading2"])
+)
+
+    iocs = scan.get("iocs", {})
+
+    for category, values in iocs.items():
+
+        elements.append(
+            Paragraph(
+                f"{category.upper()}",
+                styles["Heading3"]
+            )
+        )
+
+        if values:
+            for value in values:
+                elements.append(
+                    Paragraph(
+                        str(value),
+                        styles["BodyText"]
+                    )
+                )
+        else:
+            elements.append(
+                Paragraph(
+                    "None Detected",
+                    styles["BodyText"]
+                )
+            )
 
     elements.append(Spacer(1, 12))
 
