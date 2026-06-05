@@ -118,15 +118,25 @@ async def get_threat_timeline(
     timeline = []
 
     for i in range(7):
-        hour_start = datetime.now() - timedelta(hours=23 - i)
-        hour_end = hour_start + timedelta(hours=1)
+
+        day_start = (
+            datetime.now()
+            - timedelta(days=6 - i)
+        ).replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+        day_end = day_start + timedelta(days=1)
 
         malware_count = db["scans"].count_documents(
             {
                 "scan_type": "malware",
                 "created_at": {
-                    "$gte": hour_start,
-                    "$lt": hour_end,
+                    "$gte": day_start,
+                    "$lt": day_end,
                 },
             }
         )
@@ -135,15 +145,15 @@ async def get_threat_timeline(
             {
                 "scan_type": "phishing",
                 "created_at": {
-                    "$gte": hour_start,
-                    "$lt": hour_end,
+                    "$gte": day_start,
+                    "$lt": day_end,
                 },
             }
         )
 
         timeline.append(
             {
-                "timestamp": hour_start.isoformat(),
+                "timestamp": day_start.strftime("%Y-%m-%d"),
                 "malware": malware_count,
                 "phishing": phishing_count,
                 "vulnerabilities": 0,
