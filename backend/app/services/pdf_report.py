@@ -21,40 +21,6 @@ def generate_malware_pdf(scan: dict) -> BytesIO:
         Paragraph("SentinelAI Malware Analysis Report", styles["Title"])
     )
 
-    mitre = scan.get("mitre_techniques", [])
-
-    if mitre:
-        elements.append(
-            Paragraph("MITRE ATT&CK Techniques", styles["Heading2"])
-        )
-
-        for tech in mitre:
-            elements.append(
-                Paragraph(
-                    f"{tech.get('technique_id')} - {tech.get('technique_name', '')}",
-                    styles["BodyText"]
-                )
-            )
-
-        elements.append(Spacer(1, 12))
-
-    vt = scan.get("virustotal", {})
-
-    if vt:
-        elements.append(
-            Paragraph("VirusTotal Intelligence", styles["Heading2"])
-        )
-
-        for key, value in vt.items():
-            elements.append(
-                Paragraph(
-                    f"{key}: {value}",
-                    styles["BodyText"]
-                )
-            )
-
-        elements.append(Spacer(1, 12))
-
     elements.append(Spacer(1, 12))
 
     elements.append(
@@ -143,6 +109,54 @@ def generate_malware_pdf(scan: dict) -> BytesIO:
             )
 
     elements.append(Spacer(1, 12))
+
+    mitre = scan.get("mitre_techniques", [])
+
+    if mitre:
+        elements.append(
+            Paragraph("MITRE ATT&CK Techniques", styles["Heading2"])
+        )
+    else:
+        elements.append(
+        Paragraph(
+            "No techniques identified",
+            styles["BodyText"]
+        )
+    )
+
+        for tech in mitre:
+            elements.append(
+                Paragraph(
+                    f"{tech.get('technique_id')} - {tech.get('technique_name', '')}",
+                    styles["BodyText"]
+                )
+            )
+
+        elements.append(Spacer(1, 12))
+
+    vt = scan.get("virustotal", {})
+
+    if vt:
+        elements.append(
+            Paragraph("VirusTotal Intelligence", styles["Heading2"])
+        )
+    else:
+        elements.append(
+        Paragraph(
+            "No VirusTotal intelligence available",
+            styles["BodyText"]
+        )
+    )
+
+        for key, value in vt.items():
+            elements.append(
+                Paragraph(
+                    f"{key}: {value}",
+                    styles["BodyText"]
+                )
+            )
+
+        elements.append(Spacer(1, 12))
 
     elements.append(
         Paragraph("Recommendations", styles["Heading2"])
