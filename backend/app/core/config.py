@@ -1,7 +1,3 @@
-"""
-Configuration settings for SentinelAI
-"""
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
@@ -20,6 +16,9 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "SentinelAI"
     
+    # Environment
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+
     # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     ALGORITHM: str = "HS256"

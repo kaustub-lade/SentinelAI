@@ -1,8 +1,3 @@
-"""
-SentinelAI - Main Application Entry Point
-AI-Powered Cybersecurity Platform
-"""
-
 import logging
 import os
 from dotenv import load_dotenv
@@ -46,18 +41,30 @@ app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse({
 
 @app.on_event("startup")
 def on_startup():
-    config_issues = settings.validate_production()
+    config_issues = []
+
+    if settings.ENVIRONMENT.lower() == "production":
+        config_issues = settings.validate_production()
+
     if config_issues:
         joined = "; ".join(config_issues)
-        logger.error("Production configuration validation failed: %s", joined)
-        raise RuntimeError(f"Production configuration validation failed: {joined}")
+        logger.error(
+            "Production configuration validation failed: %s",
+            joined,
+        )
+        raise RuntimeError(
+            f"Production configuration validation failed: {joined}"
+        )
 
     if not ensure_indexes():
         logger.warning(
-            "Database initialization failed during startup. The API will still start, but DB-backed endpoints may return 503 until MongoDB is reachable."
+            "Database initialization failed during startup. "
+            "The API will still start, but DB-backed endpoints "
+            "may return 503 until MongoDB is reachable."
         )
 
 # CORS configuration
+print("ALLOWED_ORIGINS =", settings.allowed_origins)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,

@@ -43,6 +43,10 @@ export const reportsAPI = {
     params: { scope },
     responseType: 'blob',
   }),
+  downloadMalwarePDF: (scanId) =>
+  api.get(`/reports/malware-pdf/${scanId}`, {
+    responseType: 'blob',
+  }),
 }
 
 // Malware API
