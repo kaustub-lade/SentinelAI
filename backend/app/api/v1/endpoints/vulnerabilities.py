@@ -1,14 +1,10 @@
-"""
-Vulnerability Intelligence Endpoints - CVE Analysis & Prioritization
-"""
-
 from datetime import datetime
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
-
+from datetime import datetime, timedelta
 from app.core.auth_utils import require_roles
 from app.core.config import settings
 from app.core.database import get_db
@@ -76,18 +72,25 @@ async def fetch_cves_from_nvd(
     current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Fetch latest CVEs from NVD and cache/update in database."""
-    return await _fetch_cves_from_nvd(limit=limit, db=db, user_id=current_user["id"])
+    return await _fetch_cves_from_nvd(
+    limit=limit,
+    db=db,
+    user_id=None,
+)
 
 
 async def _fetch_cves_from_nvd(limit: int, db: Database, user_id: str | None = None):
     """Internal CVE fetch helper used by refresh and scan routes."""
     headers = {}
-    if settings.NVD_API_KEY:
-        headers["apiKey"] = settings.NVD_API_KEY
+
+    today = datetime.utcnow()
+    week_ago = today - timedelta(days=7)
 
     params = {
         "resultsPerPage": limit,
         "startIndex": 0,
+        "pubStartDate": week_ago.strftime("%Y-%m-%dT00:00:00.000"),
+        "pubEndDate": today.strftime("%Y-%m-%dT23:59:59.999"),
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -96,9 +99,21 @@ async def _fetch_cves_from_nvd(limit: int, db: Database, user_id: str | None = N
             params=params,
             headers=headers,
         )
+    
+    print("NVD API KEY:", settings.NVD_API_KEY)
 
     if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch CVEs from NVD")
+        print("=" * 50)
+        print("NVD STATUS:", response.status_code)
+        print("NVD URL:", response.url)
+        print("NVD RESPONSE:")
+        print(response.text)
+        print("=" * 50)
+
+        raise HTTPException(
+            status_code=502,
+            detail=f"NVD Error {response.status_code}"
+        )
 
     payload = response.json()
     vulnerabilities = payload.get("vulnerabilities", [])
