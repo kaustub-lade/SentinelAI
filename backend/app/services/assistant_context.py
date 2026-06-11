@@ -1,3 +1,4 @@
+import re
 import json
 from datetime import datetime
 from typing import Any
@@ -62,7 +63,88 @@ def build_security_response(message: str, db: Database) -> tuple[str, list[str]]
     text = message.lower().strip()
     summary = get_security_summary(db)
 
-    if any(token in text for token in ["cve", "vulnerability", "patch"]):
+    match = re.search(
+        r"(CVE-\d{4}-\d+)",
+        message,
+        re.IGNORECASE
+    )
+
+    if match and any(
+        word in text
+        for word in ["explain", "details", "describe", "tell me about"]
+    ):
+        cve_id = match.group(1).upper()
+
+        cve = db["cve_records"].find_one({
+            "cve_id": cve_id
+        })
+        print("MATCHED CVE:", cve_id)
+        print("FOUND:", cve)
+
+        if cve:
+            response = f"""{cve_id}
+
+            Severity: {cve.get('severity')}
+
+            CVSS Score: {cve.get('cvss_score')}
+
+            Risk Score: {cve.get('risk_score')}
+
+            Description:
+            {cve.get('description')}
+
+            Recommendation:
+            Apply available patches immediately and review affected systems.
+            """
+
+            return (
+                response,
+                [
+                    "What should I patch first?",
+                    "Show top critical CVEs",
+                    "Summarize vulnerabilities"
+                ]
+            )
+        else:
+            return (
+                f"{cve_id} was not found in the local CVE cache.",
+                [
+                    "Show top critical CVEs",
+                    "What should I patch first?",
+                    "Summarize vulnerabilities"
+                ]
+            )
+
+    if "patch" in text:
+            top_cves = list(
+                db["cve_records"]
+                .find()
+                .sort("risk_score", -1)
+                .limit(5)
+            )
+
+            lines = [
+                "**Patch Priority List**",
+                ""
+            ]
+
+            for i, cve in enumerate(top_cves, 1):
+                lines.append(
+                    f"{i}. {cve.get('cve_id')} "
+                    f"(CVSS {cve.get('cvss_score')}, "
+                    f"Risk {cve.get('risk_score')})"
+                )
+
+            return (
+                "\n".join(lines),
+                [
+                    "Explain top CVE",
+                    "Show critical vulnerabilities",
+                    "Security summary"
+                ]
+            )
+
+    if any(token in text for token in ["cve", "vulnerability"]):
         top = summary["cve"]["top"]
         if top:
             lines = ["**Vulnerability Analysis**", ""]
@@ -90,6 +172,41 @@ def build_security_response(message: str, db: Database) -> tuple[str, list[str]]
             "No CVE data is cached yet. Use the vulnerability dashboard to fetch from NVD first.",
             ["Fetch latest CVEs", "Show me how to refresh the dashboard"],
         )
+    
+    if any(token in text for token in [
+        "malware",
+        "virus",
+        "trojan",
+        "ransomware"
+    ]):
+        scans = list(
+            db["scans"]
+            .find({"scan_type": "malware"})
+            .sort("created_at", -1)
+            .limit(5)
+        )
+
+        lines = [
+            "**Malware Analysis Summary**",
+            ""
+        ]
+
+        for scan in scans:
+
+            lines.append(
+                f"- {scan.get('file_name')} | "
+                f"{scan.get('verdict')} | "
+                f"{scan.get('threat_level')}"
+            )
+
+        return (
+            "\n".join(lines),
+            [
+                "Show recent malware detections",
+                "How many malicious files were found?",
+                "Give security summary"
+            ]
+        )
 
     if any(token in text for token in ["phishing", "email", "url"]):
         total = summary["scans"]["phishing_total"]
@@ -116,17 +233,35 @@ def build_security_response(message: str, db: Database) -> tuple[str, list[str]]
         ]
         return "\n".join(lines), suggestions
 
-    if any(token in text for token in ["threat", "risk", "summary"]):
+    if any(token in text for token in [
+        "threat",
+        "risk",
+        "summary",
+        "secure",
+        "security posture"
+    ]):
+        rating = "Low Risk"
+
+        if summary["cve"]["critical"] > 0:
+            rating = "High Risk"
+
+        elif summary["cve"]["high"] > 3:
+            rating = "Moderate Risk"
+
         lines = [
-            "**Security Summary**",
+            "**Security Posture Assessment**",
             "",
-            f"- Cached CVEs: {summary['cve']['total']}",
-            f"- Critical CVEs: {summary['cve']['critical']}",
-            f"- High CVEs: {summary['cve']['high']}",
-            f"- Phishing scans stored: {summary['scans']['phishing_total']}",
-            f"- Malware scans stored: {summary['scans']['malware_total']}",
+            f"Critical CVEs: {summary['cve']['critical']}",
+            f"High CVEs: {summary['cve']['high']}",
+            f"Malware Scans: {summary['scans']['malware_total']}",
+            f"Phishing Scans: {summary['scans']['phishing_total']}",
             "",
-            "**Recommendation**: Start with critical CVEs and recent phishing detections.",
+            f"Overall Rating: {rating}",
+            "",
+            "Recommendations:",
+            "- Patch critical CVEs",
+            "- Review malware detections",
+            "- Monitor phishing activity",
         ]
         suggestions = [
             "Show me top critical CVEs",

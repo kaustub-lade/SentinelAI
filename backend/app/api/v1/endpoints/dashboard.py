@@ -38,12 +38,18 @@ async def get_dashboard_stats(
         malware_detected * 10 + critical_alerts * 5,
     )
 
+    phishing_attempts = db["scans"].count_documents(
+    {"scan_type": "phishing"}
+    )
+
+    vulnerabilities_found = db["cve_records"].count_documents({})
+
     return {
         "total_threats_today": total_scans,
         "critical_alerts": critical_alerts,
-        "phishing_attempts": 0,
+        "phishing_attempts": phishing_attempts,
+        "vulnerabilities_found": vulnerabilities_found,
         "malware_detected": malware_detected,
-        "vulnerabilities_found": 0,
         "risk_score": risk_score,
         "last_updated": datetime.now().isoformat(),
     }
@@ -172,38 +178,43 @@ async def get_threat_distribution(
     Get threat type distribution for pie charts
     """
 
-    phishing_count = db["scans"].count_documents(
-        {"scan_type": "phishing"}
+    critical_count = db["scans"].count_documents(
+    {"threat_level": "Critical"}
     )
 
-    malware_count = db["scans"].count_documents(
-        {"scan_type": "malware"}
+    high_count = db["scans"].count_documents(
+        {"threat_level": "High"}
     )
 
-    malicious_count = db["scans"].count_documents(
-        {
-            "verdict": {
-                "$in": ["Malicious", "Suspicious"]
-            }
-        }
+    medium_count = db["scans"].count_documents(
+        {"threat_level": "Medium"}
+    )
+
+    low_count = db["scans"].count_documents(
+        {"threat_level": "Low"}
     )
 
     return {
         "distribution": [
             {
-                "name": "Phishing",
-                "value": phishing_count,
-                "color": "#ef4444",
+                "name": "Critical",
+                "value": critical_count,
+                "color": "#dc2626",
             },
             {
-                "name": "Malware",
-                "value": malware_count,
-                "color": "#f59e0b",
+                "name": "High",
+                "value": high_count,
+                "color": "#ea580c",
             },
             {
-                "name": "Malicious/Suspicious",
-                "value": malicious_count,
-                "color": "#eab308",
+                "name": "Medium",
+                "value": medium_count,
+                "color": "#ca8a04",
+            },
+            {
+                "name": "Low",
+                "value": low_count,
+                "color": "#16a34a",
             },
         ]
     }

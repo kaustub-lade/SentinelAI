@@ -73,6 +73,80 @@ def _build_rows_for_phishing(db: Database) -> list[dict]:
 
     return rows
 
+def _build_rows_for_malware(db: Database) -> list[dict]:
+    scans = list(
+        db["scans"]
+        .find({"scan_type": "malware"})
+        .sort("created_at", -1)
+    )
+
+    rows = []
+
+    for scan in scans:
+        rows.append(
+            {
+                "scan_id": str(scan.get("_id")),
+                "created_at": scan.get("created_at").isoformat()
+                if scan.get("created_at")
+                else "",
+                "file_name": scan.get("file_name"),
+                "file_hash": scan.get("file_hash"),
+                "file_size": scan.get("file_size"),
+                "malware_probability": scan.get("malware_probability"),
+                "verdict": scan.get("verdict"),
+                "threat_level": scan.get("threat_level"),
+                "recommendations": "; ".join(
+                    scan.get("recommendations", [])
+                ),
+            }
+        )
+
+    return rows
+
+def _build_executive_summary(db: Database) -> list[dict]:
+    return [
+        {
+            "metric": "Total Scans",
+            "value": db["scans"].count_documents({})
+        },
+        {
+            "metric": "Malware Scans",
+            "value": db["scans"].count_documents(
+                {"scan_type": "malware"}
+            )
+        },
+        {
+            "metric": "Phishing Scans",
+            "value": db["scans"].count_documents(
+                {"scan_type": "phishing"}
+            )
+        },
+        {
+            "metric": "Total CVEs",
+            "value": db["cve_records"].count_documents({})
+        },
+        {
+            "metric": "Critical CVEs",
+            "value": db["cve_records"].count_documents(
+                {"severity": "Critical"}
+            )
+        },
+        {
+            "metric": "High CVEs",
+            "value": db["cve_records"].count_documents(
+                {"severity": "High"}
+            )
+        },
+        {
+            "metric": "Audit Events",
+            "value": db["audit_logs"].count_documents({})
+        },
+        {
+            "metric": "Assistant Messages",
+            "value": db["assistant_messages"].count_documents({})
+        },
+    ]
+
 
 def _build_rows_for_assistant(db: Database) -> list[dict]:
     messages = list(db["assistant_messages"].find().sort("created_at", -1))
@@ -123,6 +197,7 @@ async def export_reports(
             "phishing_scans": db["scans"].count_documents({"scan_type": "phishing"}),
             "assistant_messages": db["assistant_messages"].count_documents({}),
             "audit_events": db["audit_logs"].count_documents({}),
+            "malware_scans":db["scans"].count_documents({"scan_type": "malware"}),
         },
     }
 
@@ -142,6 +217,14 @@ async def export_reports(
         "audit_logs.csv": (
             ["event_id", "created_at", "user_id", "action", "resource_type", "resource_id", "status", "severity", "details"],
             _build_rows_for_audit(db),
+        ),
+        "malware_scans.csv": (
+            ["scan_id","created_at","file_name","file_hash","file_size","malware_probability","verdict","threat_level","recommendations",],
+            _build_rows_for_malware(db),
+        ),
+        "executive_summary.csv": (
+            ["metric", "value"],
+            _build_executive_summary(db),
         ),
     }
 

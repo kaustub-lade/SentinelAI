@@ -123,7 +123,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={AlertTriangle}
-          title="Total Threats Today"
+          title="Total Threats"
           value={stats?.total_threats_today || 0}
           color="bg-red-600"
         />
@@ -151,7 +151,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Threat Timeline */}
         <div className="lg:col-span-2 card p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Threat Timeline (24h)</h2>
+          <h2 className="text-xl font-bold text-white mb-4">Threat Timeline (7 Days)</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={timeline}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
