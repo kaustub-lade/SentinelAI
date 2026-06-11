@@ -106,7 +106,7 @@ export default function Login({ setIsAuthenticated }) {
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-sm mt-8">
-          © 2026 SentinelAI. Built for Cybersecurity Hackathon.
+          © 2026 SentinelAI.
         </p>
       </div>
     </div>
