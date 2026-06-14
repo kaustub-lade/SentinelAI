@@ -18,6 +18,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+
 // Auth API
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
@@ -35,6 +36,8 @@ export const dashboardAPI = {
   getGeographicThreats: () => api.get('/dashboard/geographic-threats'),
   getSystemHealth: () => api.get('/dashboard/system-health'),
   getActivity: () => api.get('/dashboard/activity'),
+  getMitreCoverage: () => api.get("/dashboard/mitre-coverage"),
+  getIOCSummary: () => api.get('/dashboard/ioc-summary'),
 }
 
 // Reports API
@@ -93,5 +96,10 @@ export const assistantAPI = {
       params: { conversation_id: conversationId, rating, feedback },
     }),
 }
+
+export const correlationAPI = {
+  getAttackChains: () =>
+    api.get("/correlation/attack-chains"),
+};
 
 export default api

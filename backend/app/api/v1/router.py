@@ -11,7 +11,8 @@ from app.api.v1.endpoints import (
     security_assistant,
     dashboard,
     reports,
-    auth
+    auth,
+    correlation
 )
 
 api_router = APIRouter()
@@ -24,3 +25,4 @@ api_router.include_router(phishing.router, prefix="/phishing", tags=["Phishing D
 api_router.include_router(vulnerabilities.router, prefix="/vulnerabilities", tags=["Vulnerability Intelligence"])
 api_router.include_router(security_assistant.router, prefix="/assistant", tags=["Security Assistant"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
+api_router.include_router(correlation.router, prefix="/correlation", tags=["Correlation"])

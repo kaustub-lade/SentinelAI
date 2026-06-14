@@ -3,6 +3,7 @@ import { Activity, Shield, AlertTriangle, Bug, TrendingUp, ShieldAlert, MailWarn
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { dashboardAPI, reportsAPI } from '../services/api'
 import { getStoredUser, isPrivilegedRole } from '../utils/session'
+import { correlationAPI } from '../services/api'
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
@@ -14,32 +15,82 @@ export default function Dashboard() {
   const [exporting, setExporting] = useState(false)
   const [currentUser] = useState(() => getStoredUser())
   const canAccessReports = isPrivilegedRole(currentUser)
+  const [attackChains, setAttackChains] = useState([]);
+  const [mitreCoverage, setMitreCoverage] = useState([])
+  const [mitreTactics, setMitreTactics] = useState([])
+  const [iocSummary, setIOCSummary] = useState(null)
 
   useEffect(() => {
     loadDashboardData()
   }, [])
 
   const loadDashboardData = async () => {
-    try {
-      const [statsRes, threatsRes, timelineRes, distRes, activityRes] = await Promise.all([
-        dashboardAPI.getStats(),
-        dashboardAPI.getRecentThreats(),
-        dashboardAPI.getThreatTimeline(),
-        dashboardAPI.getThreatDistribution(),
-        canAccessReports ? dashboardAPI.getActivity() : Promise.resolve({ data: { activity: [] } }),
-      ])
+  try {
+    const [
+      statsRes,
+      threatsRes,
+      timelineRes,
+      distRes,
+      activityRes,
+      attackChainsRes,
+      mitreRes,
+      iocRes
+    ] = await Promise.all([
+      dashboardAPI.getStats(),
+      dashboardAPI.getRecentThreats(),
+      dashboardAPI.getThreatTimeline(),
+      dashboardAPI.getThreatDistribution(),
+      canAccessReports
+        ? dashboardAPI.getActivity()
+        : Promise.resolve({ data: { activity: [] } }),
+      correlationAPI.getAttackChains(),
+      dashboardAPI.getMitreCoverage(),
+      dashboardAPI.getIOCSummary(),
+    ])
 
-      setStats(statsRes.data)
-      setThreats(threatsRes.data.threats.slice(0, 5))
-      setTimeline(timelineRes.data.timeline)
-      setDistribution(distRes.data.distribution)
-      setActivity(activityRes?.data?.activity || [])
-    } catch (error) {
-      console.error('Error loading dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
+    setStats(statsRes.data)
+
+    setThreats(
+      threatsRes.data.threats.slice(0, 5)
+    )
+
+    setTimeline(
+      timelineRes.data.timeline
+    )
+
+    setDistribution(
+      distRes.data.distribution
+    )
+
+    setActivity(
+      activityRes?.data?.activity || []
+    )
+
+    setAttackChains(
+      attackChainsRes?.data?.attack_chains || []
+    )
+
+    setMitreCoverage(
+      mitreRes?.data?.techniques || []
+    )
+
+    setMitreTactics(
+      mitreRes?.data?.tactics || []
+    )
+
+    setIOCSummary(
+      iocRes.data
+    )
+
+  } catch (error) {
+    console.error(
+      "Error loading dashboard:",
+      error
+    )
+  } finally {
+    setLoading(false)
   }
+}
 
   const downloadReports = async () => {
     try {
@@ -88,6 +139,32 @@ export default function Dashboard() {
     }
     return badges[severity] || 'badge-low'
   }
+
+  const ALL_TACTICS = [
+    "Initial Access",
+    "Execution",
+    "Persistence",
+    "Privilege Escalation",
+    "Defense Evasion",
+    "Credential Access",
+    "Discovery",
+    "Lateral Movement",
+    "Collection",
+    "Command and Control",
+    "Exfiltration",
+    "Impact",
+  ]
+
+  const heatmapData = ALL_TACTICS.map((name) => {
+    const found = mitreTactics.find(
+      (t) => t.name === name
+    )
+
+    return {
+      name,
+      count: found?.count || 0,
+    }
+  })
 
   if (loading) {
     return (
@@ -226,7 +303,7 @@ export default function Dashboard() {
       )}
 
       {/* Recent Threats Table */}
-      <div className="card p-6">
+      <div className="card p-6 mb-8">
         <h2 className="text-xl font-bold text-white mb-4">Recent Threats</h2>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -262,6 +339,258 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+      </div>
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-bold text-white mb-4">
+          AI Attack Chain Analysis
+        </h2>
+
+        {attackChains.length === 0 ? (
+          <p className="text-slate-400">
+            No attack chains detected
+          </p>
+        ) : (
+          attackChains.map((chain) => (
+            <div
+              key={chain.chain_id}
+              className="p-4 rounded-lg bg-slate-700"
+            >
+              <div className="flex justify-between mb-3">
+                <span className="font-bold text-white">
+                  {chain.chain_id}
+                </span>
+
+                <div className="flex gap-3">
+                  <span className="px-3 py-1 rounded bg-red-900 text-red-300">
+                    {chain.severity}
+                  </span>
+
+                  <span className="px-3 py-1 rounded bg-orange-900 text-orange-300">
+                    Risk {chain.risk_score}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3 mb-4">
+                {chain.stages.map((stage) => (
+                  <span
+                    key={stage}
+                    className="px-3 py-1 bg-blue-900/40 text-blue-300 rounded-lg text-sm"
+                  >
+                    {stage}
+                  </span>
+                ))}
+              </div>
+              <p className="text-slate-400 text-sm">
+                {chain.description}
+              </p>
+              <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-600">
+                <div>
+                  <p className="text-slate-400 text-xs">
+                    Phishing Events
+                  </p>
+                  <p className="text-white font-bold">
+                    {chain.phishing_count}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-slate-400 text-xs">
+                    Malware Events
+                  </p>
+                  <p className="text-white font-bold">
+                    {chain.malware_count}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-slate-400 text-xs">
+                    Critical CVEs
+                  </p>
+                  <p className="text-white font-bold">
+                    {chain.critical_cve_count}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="card p-6 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-white">
+            MITRE ATT&CK Coverage
+          </h2>
+
+          <span className="px-3 py-1 rounded-lg bg-blue-900/40 text-blue-300 text-sm">
+            {mitreCoverage.length} Techniques
+          </span>
+        </div>
+
+        {mitreCoverage.length === 0 ? (
+          <p className="text-slate-400">
+            No MITRE techniques detected
+          </p>
+        ) : (
+          <>
+            {/* Top Techniques */}
+            <div className="space-y-4 mb-8">
+
+              {mitreCoverage.map((technique) => {
+
+                const maxCount = Math.max(
+                  ...mitreCoverage.map(t => t.count)
+                )
+
+                const percentage =
+                  maxCount > 0
+                    ? (technique.count / maxCount) * 100
+                    : 0
+
+                return (
+                  <div
+                    key={technique.technique_id}
+                    className="p-4 rounded-lg bg-slate-700"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div>
+                        <p className="text-white font-semibold">
+                          {technique.technique_id}
+                        </p>
+
+                        <p className="text-slate-400 text-sm">
+                          {technique.technique_name}
+                        </p>
+                      </div>
+
+                      <div className="px-3 py-1 rounded bg-blue-900 text-blue-300 text-sm">
+                        {technique.count} detections
+                      </div>
+                    </div>
+
+                    <div className="w-full bg-slate-800 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${percentage}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ATT&CK Tactic Heatmap */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                ATT&CK Tactic Heatmap
+              </h3>
+
+              {mitreTactics.length === 0 ? (
+                <p className="text-slate-400">
+                  No ATT&CK tactics detected
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {heatmapData.map((tactic) => (
+                    <div
+                      key={tactic.name}
+                      className="bg-slate-700 rounded-lg p-4 border border-slate-600"
+                    >
+                      <p className="text-slate-300 text-sm">
+                        {tactic.name}
+                      </p>
+
+                      <p className="text-white text-xl font-bold mt-2">
+                        {tactic.count}
+                      </p>
+
+                      <div className="w-full bg-slate-800 rounded-full h-2 mt-3">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full"
+                          style={{
+                            width: `${
+                              heatmapData.some(t => t.count > 0)
+                                ? (tactic.count /
+                                    Math.max(
+                                      ...heatmapData.map(
+                                        (t) => t.count
+                                      )
+                                    )) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-bold text-white mb-4">
+          IOC Intelligence
+        </h2>
+
+        {iocSummary && (
+          <>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+
+              <div className="bg-slate-700 p-4 rounded-lg">
+                <p className="text-slate-400 text-sm">URLs</p>
+                <p className="text-white text-2xl font-bold">
+                  {iocSummary.url_count}
+                </p>
+              </div>
+
+              <div className="bg-slate-700 p-4 rounded-lg">
+                <p className="text-slate-400 text-sm">Domains</p>
+                <p className="text-white text-2xl font-bold">
+                  {iocSummary.domain_count}
+                </p>
+              </div>
+
+              <div className="bg-slate-700 p-4 rounded-lg">
+                <p className="text-slate-400 text-sm">IPs</p>
+                <p className="text-white text-2xl font-bold">
+                  {iocSummary.ip_count}
+                </p>
+              </div>
+
+              <div className="bg-slate-700 p-4 rounded-lg">
+                <p className="text-slate-400 text-sm">Emails</p>
+                <p className="text-white text-2xl font-bold">
+                  {iocSummary.email_count}
+                </p>
+              </div>
+
+            </div>
+
+            <div>
+              <h3 className="text-white font-semibold mb-2">
+                Top Domains
+              </h3>
+
+              {iocSummary.top_domains.map(([domain, count]) => (
+                <div
+                  key={domain}
+                  className="flex justify-between py-2 border-b border-slate-700"
+                >
+                  <span className="text-slate-300">
+                    {domain}
+                  </span>
+
+                  <span className="text-blue-400">
+                    {count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

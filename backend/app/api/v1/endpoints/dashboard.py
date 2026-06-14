@@ -294,5 +294,169 @@ async def get_recent_activity(
             "details": event.get("details"),
             "timestamp": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
         })
-
+    
     return {"activity": activity}
+
+@router.get("/mitre-coverage")
+async def get_mitre_coverage(
+    db: Database = Depends(get_db),
+):
+    technique_counts = {}
+    tactic_counts = {}
+
+    TACTIC_MAP = {
+        "T1027": "Defense Evasion",
+        "T1059": "Execution",
+        "T1059.001": "Execution",
+        "T1059.003": "Execution",
+        "T1055": "Privilege Escalation",
+        "T1071": "Command & Control",
+        "T1105": "Command & Control",
+        "T1112": "Persistence",
+        "T1543": "Persistence",
+        "T1053": "Persistence",
+        "T1003": "Credential Access",
+        "T1047": "Execution",
+        "T1218": "Defense Evasion",
+    }
+
+    scans = db["scans"].find(
+        {
+            "scan_type": "malware",
+            "mitre_techniques": {
+                "$exists": True,
+                "$ne": []
+            }
+        }
+    )
+
+    for scan in scans:
+
+        for technique in scan.get(
+            "mitre_techniques",
+            []
+        ):
+
+            tid = technique.get(
+                "technique_id"
+            )
+
+            name = technique.get(
+                "technique_name",
+                tid
+            )
+
+            if tid not in technique_counts:
+
+                technique_counts[tid] = {
+                    "technique_id": tid,
+                    "technique_name": name,
+                    "count": 0,
+                }
+
+            technique_counts[tid]["count"] += 1
+
+            tactic = TACTIC_MAP.get(
+                tid,
+                "Other"
+            )
+
+            tactic_counts[tactic] = (
+                tactic_counts.get(tactic, 0)
+                + 1
+            )
+
+    techniques = sorted(
+        technique_counts.values(),
+        key=lambda x: x["count"],
+        reverse=True,
+    )
+
+    tactics = [
+        {
+            "name": name,
+            "count": count
+        }
+        for name, count
+        in tactic_counts.items()
+    ]
+
+    return {
+        "techniques": techniques,
+        "tactics": tactics,
+    }
+
+@router.get("/ioc-summary")
+async def get_ioc_summary(
+    db: Database = Depends(get_db),
+):
+    urls = {}
+    domains = {}
+    ips = {}
+    emails = {}
+
+    scans = db["scans"].find(
+        {"scan_type": "malware"}
+    )
+
+    for scan in scans:
+
+        file_name = (
+            scan.get("file_name", "")
+            .lower()
+        )
+
+        # Skip ML artifacts
+        if file_name.endswith(
+            (".joblib", ".pkl")
+        ):
+            continue
+
+        iocs = scan.get("iocs", {})
+
+        for url in iocs.get("urls", []):
+            urls[url] = urls.get(url, 0) + 1
+
+        for domain in iocs.get("domains", []):
+            domains[domain] = (
+                domains.get(domain, 0) + 1
+            )
+
+        for ip in iocs.get("ips", []):
+            ips[ip] = ips.get(ip, 0) + 1
+
+        for email in iocs.get("emails", []):
+            emails[email] = (
+                emails.get(email, 0) + 1
+            )
+
+    return {
+        "url_count": len(urls),
+        "domain_count": len(domains),
+        "ip_count": len(ips),
+        "email_count": len(emails),
+
+        "top_urls": sorted(
+            urls.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5],
+
+        "top_domains": sorted(
+            domains.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5],
+
+        "top_ips": sorted(
+            ips.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5],
+
+        "top_emails": sorted(
+            emails.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5],
+    }
