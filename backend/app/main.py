@@ -14,6 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.core.limiter import limiter
+from app.api.v1.endpoints import alerts
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -111,6 +112,11 @@ async def metrics():
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+app.include_router(
+    alerts.router,
+    prefix="/api/v1/alerts",
+    tags=["Alerts"]
+)
 
 
 if __name__ == "__main__":

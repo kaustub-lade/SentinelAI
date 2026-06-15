@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { dashboardAPI, reportsAPI } from '../services/api'
 import { getStoredUser, isPrivilegedRole } from '../utils/session'
 import { correlationAPI } from '../services/api'
+import { alertsAPI } from '../services/api'
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
@@ -19,10 +20,35 @@ export default function Dashboard() {
   const [mitreCoverage, setMitreCoverage] = useState([])
   const [mitreTactics, setMitreTactics] = useState([])
   const [iocSummary, setIOCSummary] = useState(null)
-
+  const [alerts, setAlerts] = useState([])
+  const [alertSummary, setAlertSummary] = useState(null)
+  const [alertTrend, setAlertTrend] = useState([])
+  const [alertFilter,setAlertFilter] = useState("All") 
   useEffect(() => {
     loadDashboardData()
   }, [])
+
+  const handleAlertStatus = async (
+    alertId,
+    status
+  ) => {
+    try {
+
+      await alertsAPI.updateStatus(
+        alertId,
+        status
+      )
+
+      await loadDashboardData()
+
+    } catch (error) {
+
+      console.error(
+        "Failed to update alert:",
+        error
+      )
+    }
+  }
 
   const loadDashboardData = async () => {
   try {
@@ -34,7 +60,10 @@ export default function Dashboard() {
       activityRes,
       attackChainsRes,
       mitreRes,
-      iocRes
+      iocRes,
+      alertsRes,
+      alertSummaryRes,
+      alertTrendRes
     ] = await Promise.all([
       dashboardAPI.getStats(),
       dashboardAPI.getRecentThreats(),
@@ -46,6 +75,9 @@ export default function Dashboard() {
       correlationAPI.getAttackChains(),
       dashboardAPI.getMitreCoverage(),
       dashboardAPI.getIOCSummary(),
+      alertsAPI.getAlerts(),
+      alertsAPI.getSummary(),
+      alertsAPI.getTrends()
     ])
 
     setStats(statsRes.data)
@@ -81,6 +113,20 @@ export default function Dashboard() {
     setIOCSummary(
       iocRes.data
     )
+    setAlerts(
+      alertsRes.data.alerts || []
+  )
+
+    setAlertSummary(
+      alertSummaryRes.data
+  )
+  setAlertTrend(
+  alertTrendRes.data.trend || []
+)
+console.log(
+  "Alert Trend:",
+  alertTrendRes.data.trend
+)
 
   } catch (error) {
     console.error(
@@ -174,6 +220,14 @@ export default function Dashboard() {
     )
   }
 
+  const filteredAlerts =
+  alertFilter === "All"
+    ? alerts
+    : alerts.filter(
+        alert =>
+          alert.status === alertFilter
+      )
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -195,7 +249,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
@@ -270,6 +323,205 @@ export default function Dashboard() {
               </Pie>
               <Tooltip />
             </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-bold text-white mb-4">
+          Security Alerts
+        </h2>
+
+        {alertSummary && (
+          <div className="grid grid-cols-4 gap-4">
+
+            <div className="bg-slate-700 rounded-lg p-4">
+              <p className="text-slate-400 text-sm">
+                Total Alerts
+              </p>
+              <p className="text-white text-2xl font-bold">
+                {alertSummary.total}
+              </p>
+            </div>
+
+            <div className="bg-red-900/30 border border-red-700 rounded-lg p-4">
+              <p className="text-red-300 text-sm">
+                Critical
+              </p>
+              <p className="text-white text-2xl font-bold">
+                {alertSummary.critical}
+              </p>
+            </div>
+
+            <div className="bg-orange-900/30 border border-orange-700 rounded-lg p-4">
+              <p className="text-orange-300 text-sm">
+                High
+              </p>
+              <p className="text-white text-2xl font-bold">
+                {alertSummary.high}
+              </p>
+            </div>
+
+            <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+              <p className="text-blue-300 text-sm">
+                Open
+              </p>
+              <p className="text-white text-2xl font-bold">
+                {alertSummary.open}
+              </p>
+            </div>
+
+          </div>
+        )}
+      </div>
+      <div className="card p-6 mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">
+            Recent Alerts
+          </h2>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              "All",
+              "Open",
+              "Investigating",
+              "Resolved",
+              "False Positive"
+            ].map((status) => (
+              <button
+                key={status}
+                onClick={() => setAlertFilter(status)}
+                className={`px-3 py-1 rounded text-sm transition ${
+                  alertFilter === status
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-700 text-slate-300"
+                }`}
+              >
+                {status} (
+                {
+                  status === "All"
+                    ? alerts.length
+                    : alerts.filter(
+                        a => a.status === status
+                      ).length
+                }
+                )
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          {filteredAlerts.length > 0 ? (
+            filteredAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="p-4 rounded-lg bg-slate-700"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-white font-semibold">
+                    {alert.title}
+                  </p>
+                  <div className="flex gap-2">
+                    <span className="px-2 py-1 rounded bg-yellow-900 text-yellow-300 text-xs">
+                      {alert.severity}
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded text-xs ${
+                        alert.status === "Open"
+                          ? "bg-red-900 text-red-300"
+                          : alert.status === "Investigating"
+                          ? "bg-yellow-900 text-yellow-300"
+                          : alert.status === "Resolved"
+                          ? "bg-green-900 text-green-300"
+                          : "bg-slate-600 text-slate-300"
+                      }`}
+                    >
+                      {alert.status}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm">
+                  {alert.description}
+                </p>
+                <p className="text-slate-500 text-xs mt-2">
+                  {alert.source}
+                </p>
+                {alert.status !== "Resolved" &&
+                  alert.status !== "False Positive" && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() =>
+                          handleAlertStatus(
+                            alert.id,
+                            "Investigating"
+                          )
+                        }
+                        className="px-3 py-1 rounded bg-yellow-700 hover:bg-yellow-600 text-white text-xs"
+                      >
+                        Investigate
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleAlertStatus(
+                            alert.id,
+                            "Resolved"
+                          )
+                        }
+                        className="px-3 py-1 rounded bg-green-700 hover:bg-green-600 text-white text-xs"
+                      >
+                        Resolve
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleAlertStatus(
+                            alert.id,
+                            "False Positive"
+                          )
+                        }
+                        className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white text-xs"
+                      >
+                        False Positive
+                      </button>
+                    </div>
+                  )}
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-400">
+              No alerts match this filter
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-bold text-white mb-4">
+          Alert Trends (7 Days)
+        </h2>
+        <div className="h-72">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
+            <LineChart
+              data={alertTrend}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#334155"
+              />
+              <XAxis
+                dataKey="date"
+                stroke="#94a3b8"
+              />
+              <YAxis
+                stroke="#94a3b8"
+              />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="alerts"
+                stroke="#3b82f6"
+                strokeWidth={3}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>

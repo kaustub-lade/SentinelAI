@@ -102,4 +102,23 @@ export const correlationAPI = {
     api.get("/correlation/attack-chains"),
 };
 
+export const alertsAPI = {
+  getAlerts: () => api.get('/alerts'),
+
+  getSummary: () =>
+    api.get('/alerts/summary'),
+
+  getTrends: () =>
+  api.get('/alerts/trends'),
+
+  updateStatus: (id, status) =>
+    api.put(
+      `/alerts/${id}/status`,
+      null,
+      {
+        params: { status }
+      }
+    ),
+}
+
 export default api
