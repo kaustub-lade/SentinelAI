@@ -38,6 +38,7 @@ export const dashboardAPI = {
   getActivity: () => api.get('/dashboard/activity'),
   getMitreCoverage: () => api.get("/dashboard/mitre-coverage"),
   getIOCSummary: () => api.get('/dashboard/ioc-summary'),
+  getExecutiveSummary: () => api.get("/dashboard/executive-summary"),
 }
 
 // Reports API
@@ -119,6 +120,13 @@ export const alertsAPI = {
         params: { status }
       }
     ),
+}
+
+export const cloudAPI = {
+
+  getFindings: () =>
+    api.get("/cloud/findings"),
+
 }
 
 export default api

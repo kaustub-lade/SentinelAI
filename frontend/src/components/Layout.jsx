@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Shield, LayoutDashboard, Bug, Mail, AlertTriangle, MessageSquare, LogOut } from 'lucide-react'
+import { Shield, LayoutDashboard, Bug, Mail, AlertTriangle, MessageSquare, LogOut, Cloud } from 'lucide-react'
 import { getStoredUser } from '../utils/session'
 
 export default function Layout({ setIsAuthenticated }) {
@@ -17,6 +17,7 @@ export default function Layout({ setIsAuthenticated }) {
     { path: '/phishing', icon: Mail, label: 'Phishing Detection' },
     { path: '/vulnerabilities', icon: AlertTriangle, label: 'Vulnerabilities' },
     { path: '/assistant', icon: MessageSquare, label: 'AI Assistant' },
+    { path: '/cloud-security', icon: Cloud, label: 'Cloud Security' },
   ]
 
   return (

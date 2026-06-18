@@ -12,7 +12,8 @@ from app.api.v1.endpoints import (
     dashboard,
     reports,
     auth,
-    correlation
+    correlation,
+    cloud
 )
 
 api_router = APIRouter()
@@ -26,3 +27,4 @@ api_router.include_router(vulnerabilities.router, prefix="/vulnerabilities", tag
 api_router.include_router(security_assistant.router, prefix="/assistant", tags=["Security Assistant"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(correlation.router, prefix="/correlation", tags=["Correlation"])
+api_router.include_router(cloud.router,prefix="/cloud",tags=["Cloud Security"])

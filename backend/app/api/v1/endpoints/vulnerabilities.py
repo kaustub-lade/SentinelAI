@@ -69,7 +69,6 @@ def _extract_affected(cve_obj: dict) -> str:
 async def fetch_cves_from_nvd(
     limit: int = Query(default=50, ge=1, le=200),
     db: Database = Depends(get_db),
-    current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Fetch latest CVEs from NVD and cache/update in database."""
     return await _fetch_cves_from_nvd(
@@ -312,17 +311,15 @@ def get_trending_vulnerabilities(db: Database = Depends(get_db)):
 @router.post("/scan")
 async def scan_for_vulnerabilities(
     db: Database = Depends(get_db),
-    current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Trigger CVE refresh scan from NVD."""
-    result = await _fetch_cves_from_nvd(limit=50, db=db, user_id=current_user["id"])
+    result = await _fetch_cves_from_nvd(limit=50, db=db)
     scan_id = f"scan_{int(datetime.utcnow().timestamp())}"
     log_audit_event(
         db,
         action="vulnerabilities.scan",
         resource_type="scan",
         resource_id=scan_id,
-        user_id=current_user["id"],
         severity="info",
         details={"fetched": result["fetched"], "upserted": result["upserted"]},
     )

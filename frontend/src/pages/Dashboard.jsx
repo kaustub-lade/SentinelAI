@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Activity, Shield, AlertTriangle, Bug, TrendingUp, ShieldAlert, MailWarning, MessageSquareText, Download } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { dashboardAPI, reportsAPI } from '../services/api'
-import { getStoredUser, isPrivilegedRole } from '../utils/session'
+import { dashboardAPI, reportsAPI } from '../services/api'  
 import { correlationAPI } from '../services/api'
 import { alertsAPI } from '../services/api'
 
@@ -14,8 +13,6 @@ export default function Dashboard() {
   const [activity, setActivity] = useState([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
-  const [currentUser] = useState(() => getStoredUser())
-  const canAccessReports = isPrivilegedRole(currentUser)
   const [attackChains, setAttackChains] = useState([]);
   const [mitreCoverage, setMitreCoverage] = useState([])
   const [mitreTactics, setMitreTactics] = useState([])
@@ -24,6 +21,7 @@ export default function Dashboard() {
   const [alertSummary, setAlertSummary] = useState(null)
   const [alertTrend, setAlertTrend] = useState([])
   const [alertFilter,setAlertFilter] = useState("All") 
+  const [executiveSummary,setExecutiveSummary] = useState(null)
   useEffect(() => {
     loadDashboardData()
   }, [])
@@ -63,21 +61,21 @@ export default function Dashboard() {
       iocRes,
       alertsRes,
       alertSummaryRes,
-      alertTrendRes
+      alertTrendRes,
+      executiveSummaryRes
     ] = await Promise.all([
       dashboardAPI.getStats(),
       dashboardAPI.getRecentThreats(),
       dashboardAPI.getThreatTimeline(),
       dashboardAPI.getThreatDistribution(),
-      canAccessReports
-        ? dashboardAPI.getActivity()
-        : Promise.resolve({ data: { activity: [] } }),
+      dashboardAPI.getActivity(),
       correlationAPI.getAttackChains(),
       dashboardAPI.getMitreCoverage(),
       dashboardAPI.getIOCSummary(),
       alertsAPI.getAlerts(),
       alertsAPI.getSummary(),
-      alertsAPI.getTrends()
+      alertsAPI.getTrends(),
+      dashboardAPI.getExecutiveSummary()
     ])
 
     setStats(statsRes.data)
@@ -120,8 +118,17 @@ export default function Dashboard() {
     setAlertSummary(
       alertSummaryRes.data
   )
+
   setAlertTrend(
   alertTrendRes.data.trend || []
+  )
+
+  setExecutiveSummary(
+    executiveSummaryRes.data
+  )
+  console.log(
+  "Executive Summary Response:",
+  executiveSummaryRes.data
 )
 console.log(
   "Alert Trend:",
@@ -237,7 +244,6 @@ console.log(
             <h1 className="text-3xl font-bold text-white mb-2">Security Dashboard</h1>
             <p className="text-slate-400">Real-time threat monitoring and analytics</p>
           </div>
-          {canAccessReports && (
             <button
               onClick={downloadReports}
               disabled={exporting}
@@ -246,9 +252,88 @@ console.log(
               <Download className="w-4 h-4" />
               {exporting ? 'Exporting...' : 'Download Reports'}
             </button>
-          )}
         </div>
       </div>
+      {executiveSummary && (
+        <div className="card p-6 mb-8">
+
+          <div className="flex justify-between items-center mb-6">
+
+            <div>
+              <h2 className="text-2xl font-bold text-white">
+                Executive Security Summary
+              </h2>
+
+              <p className="text-slate-400">
+                Current enterprise security posture
+              </p>
+            </div>
+
+            <span
+              className={`px-4 py-2 rounded-lg font-semibold ${
+                executiveSummary.posture === "High Risk"
+                  ? "bg-red-900 text-red-300"
+                  : "bg-yellow-900 text-yellow-300"
+              }`}
+            >
+              {executiveSummary.posture}
+            </span>
+
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+
+            <div className="bg-slate-700 rounded-lg p-4">
+              <p className="text-slate-400 text-sm">
+                Malware Events
+              </p>
+              <p className="text-2xl font-bold text-white">
+                {executiveSummary.malware_count}
+              </p>
+            </div>
+
+            <div className="bg-slate-700 rounded-lg p-4">
+              <p className="text-slate-400 text-sm">
+                Phishing Events
+              </p>
+              <p className="text-2xl font-bold text-white">
+                {executiveSummary.phishing_count}
+              </p>
+            </div>
+
+            <div className="bg-slate-700 rounded-lg p-4">
+              <p className="text-slate-400 text-sm">
+                Critical CVEs
+              </p>
+              <p className="text-2xl font-bold text-red-400">
+                {executiveSummary.critical_cves}
+              </p>
+            </div>
+
+            <div className="bg-slate-700 rounded-lg p-4">
+              <p className="text-slate-400 text-sm">
+                Attack Chains
+              </p>
+              <p className="text-2xl font-bold text-orange-400">
+                {executiveSummary.attack_chains}
+              </p>
+            </div>
+
+          </div>
+
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+
+            <p className="text-slate-300">
+              <span className="text-white font-semibold">
+                Executive Recommendation:
+              </span>{" "}
+              {executiveSummary?.recommendation}
+            </p>
+
+          </div>
+
+        </div>
+      )}
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
@@ -493,6 +578,156 @@ console.log(
       </div>
       <div className="card p-6 mb-8">
         <h2 className="text-xl font-bold text-white mb-4">
+          Threat Correlation Engine
+        </h2>
+
+        {attackChains.length > 0 ? (
+
+          attackChains.map((chain) => (
+
+            <div
+              key={chain.chain_id}
+              className="bg-slate-700 rounded-lg p-6"
+            >
+
+              <div className="flex justify-between mb-6">
+
+                <div>
+
+                  <h3 className="text-lg font-bold text-white">
+                    {chain.chain_id}
+                  </h3>
+
+                  <p className="text-slate-400">
+                    Correlated Attack Path
+                  </p>
+
+                </div>
+
+                <div
+                  className={`
+                    px-3 py-1 rounded
+                    ${
+                      chain.severity === "Critical"
+                        ? "bg-red-900 text-red-300"
+                        : chain.severity === "High"
+                        ? "bg-orange-900 text-orange-300"
+                        : "bg-yellow-900 text-yellow-300"
+                    }
+                  `}
+                >
+                  {chain.severity}
+                </div>
+
+              </div>
+
+              <div className="flex items-center justify-between">
+
+                <div className="text-center">
+
+                  <div className="text-3xl">
+                    🎣
+                  </div>
+
+                  <p className="text-white">
+                    Phishing
+                  </p>
+
+                  <p className="text-slate-400 text-sm">
+                    {chain.phishing_count}
+                  </p>
+
+                </div>
+
+                <div className="text-blue-400 text-2xl">
+                  →
+                </div>
+
+                <div className="text-center">
+
+                  <div className="text-3xl">
+                    🦠
+                  </div>
+
+                  <p className="text-white">
+                    Malware
+                  </p>
+
+                  <p className="text-slate-400 text-sm">
+                    {chain.malware_count}
+                  </p>
+
+                </div>
+
+                <div className="text-blue-400 text-2xl">
+                  →
+                </div>
+
+                <div className="text-center">
+
+                  <div className="text-3xl">
+                    ⚠️
+                  </div>
+
+                  <p className="text-white">
+                    Critical CVEs
+                  </p>
+
+                  <p className="text-slate-400 text-sm">
+                    {chain.critical_cve_count}
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-6">
+
+                <div className="flex justify-between mb-2">
+
+                  <span className="text-slate-400">
+                    Attack Risk Score
+                  </span>
+
+                  <span className="text-white font-bold">
+                    {chain.risk_score}/100
+                  </span>
+
+                </div>
+
+                <div className="w-full bg-slate-800 rounded-full h-3">
+
+                  <div
+                    className="
+                      bg-red-500
+                      h-3
+                      rounded-full
+                    "
+                    style={{
+                      width:
+                        `${chain.risk_score}%`
+                    }}
+                  />
+
+                </div>
+
+              </div>
+
+            </div>
+
+          ))
+
+        ) : (
+
+          <p className="text-slate-400">
+            No attack chains detected.
+          </p>
+
+        )}
+
+      </div>
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-bold text-white mb-4">
           Alert Trends (7 Days)
         </h2>
         <div className="h-72">
@@ -527,7 +762,6 @@ console.log(
       </div>
 
       {/* Activity Feed */}
-      {canAccessReports && (
         <div className="card p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Recent Activity</h2>
@@ -552,7 +786,6 @@ console.log(
             )}
           </div>
         </div>
-      )}
 
       {/* Recent Threats Table */}
       <div className="card p-6 mb-8">
@@ -826,20 +1059,26 @@ console.log(
                 Top Domains
               </h3>
 
-              {iocSummary.top_domains.map(([domain, count]) => (
-                <div
-                  key={domain}
-                  className="flex justify-between py-2 border-b border-slate-700"
-                >
-                  <span className="text-slate-300">
-                    {domain}
-                  </span>
+              {iocSummary?.top_domains?.length > 0 ? (
+                iocSummary.top_domains.map(([domain, count]) => (
+                  <div
+                    key={domain}
+                    className="flex justify-between py-2 border-b border-slate-700"
+                  >
+                    <span className="text-slate-300">
+                      {domain}
+                    </span>
 
-                  <span className="text-blue-400">
-                    {count}
-                  </span>
-                </div>
-              ))}
+                    <span className="text-blue-400">
+                      {count}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-400">
+                  No domains detected
+                </p>
+              )}
             </div>
           </>
         )}

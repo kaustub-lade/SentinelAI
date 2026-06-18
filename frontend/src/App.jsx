@@ -8,6 +8,7 @@ import MalwareAnalysis from './pages/MalwareAnalysis'
 import PhishingDetection from './pages/PhishingDetection'
 import VulnerabilityIntelligence from './pages/VulnerabilityIntelligence'
 import SecurityAssistant from './pages/SecurityAssistant'
+import CloudSecurity from './pages/CloudSecurity'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('sentinelai_token')))
@@ -47,6 +48,7 @@ function App() {
           <Route path="phishing" element={<PhishingDetection />} />
           <Route path="vulnerabilities" element={<VulnerabilityIntelligence />} />
           <Route path="assistant" element={<SecurityAssistant />} />
+          <Route path="cloud-security" element={<CloudSecurity />}/>
         </Route>
         
         <Route path="*" element={<Navigate to="/login" />} />

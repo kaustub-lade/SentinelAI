@@ -175,7 +175,7 @@ async def get_phishing_stats(db: Database = Depends(get_db)):
 
 
 @router.post("/train-model")
-async def train_phishing_model(samples: int = 2500, current_user=Depends(require_roles("admin", "analyst"))):
+async def train_phishing_model(samples: int = 2500):
     """
     Trigger retraining of phishing detection model
     """

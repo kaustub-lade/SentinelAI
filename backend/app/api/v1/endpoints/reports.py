@@ -185,7 +185,6 @@ def _build_rows_for_audit(db: Database) -> list[dict]:
 async def export_reports(
     scope: str = Query(default="all", pattern="^(all|cves|phishing|assistant|audit)$"),
     db: Database = Depends(get_db),
-    current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Export security reports as a ZIP bundle of CSV files."""
     export_timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")

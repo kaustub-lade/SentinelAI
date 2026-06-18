@@ -18,31 +18,92 @@ async def get_dashboard_stats(
     Get overall security statistics for dashboard
     """
 
-    total_scans = db["scans"].count_documents({})
+    # Last 24 hours
+    today = datetime.utcnow() - timedelta(days=1)
 
+    # Total scans performed today
+    total_scans = db["scans"].count_documents(
+        {
+            "created_at": {
+                "$gte": today
+            }
+        }
+    )
+
+    # Malware detections
     malware_detected = db["scans"].count_documents(
         {
             "scan_type": "malware",
-            "verdict": {"$in": ["Malicious", "Suspicious"]},
+            "verdict": {
+                "$in": [
+                    "Malicious",
+                    "Suspicious"
+                ]
+            }
         }
     )
 
-    critical_alerts = db["scans"].count_documents(
+    # Active critical/high alerts
+    critical_alerts = db["alerts"].count_documents(
         {
-            "threat_level": {"$in": ["Critical", "High"]},
+            "severity": {
+                "$in": [
+                    "Critical",
+                    "High"
+                ]
+            },
+            "status": {
+                "$ne": "Resolved"
+            }
         }
+    )
+
+    # Phishing activity
+    phishing_attempts = db["scans"].count_documents(
+        {
+            "scan_type": "phishing"
+        }
+    )
+
+    # Vulnerabilities
+    vulnerabilities_found = db["cve_records"].count_documents(
+        {}
+    )
+
+    # Dynamic risk score
+    risk_score = 0
+
+    risk_score += min(
+        malware_detected * 3,
+        40
+    )
+
+    risk_score += min(
+        critical_alerts * 5,
+        40
+    )
+
+    risk_score += min(
+        phishing_attempts * 5,
+        20
     )
 
     risk_score = min(
-        100,
-        malware_detected * 10 + critical_alerts * 5,
+        risk_score,
+        100
     )
 
-    phishing_attempts = db["scans"].count_documents(
-    {"scan_type": "phishing"}
-    )
-
-    vulnerabilities_found = db["cve_records"].count_documents({})
+    # Security posture grade
+    if risk_score >= 90:
+        posture_grade = "F"
+    elif risk_score >= 75:
+        posture_grade = "D"
+    elif risk_score >= 60:
+        posture_grade = "C"
+    elif risk_score >= 40:
+        posture_grade = "B"
+    else:
+        posture_grade = "A"
 
     return {
         "total_threats_today": total_scans,
@@ -51,7 +112,8 @@ async def get_dashboard_stats(
         "vulnerabilities_found": vulnerabilities_found,
         "malware_detected": malware_detected,
         "risk_score": risk_score,
-        "last_updated": datetime.now().isoformat(),
+        "posture_grade": posture_grade,
+        "last_updated": datetime.utcnow().isoformat(),
     }
 
 
@@ -276,7 +338,6 @@ async def get_system_health():
 @router.get("/activity")
 async def get_recent_activity(
     db: Database = Depends(get_db),
-    current_user=Depends(require_roles("admin", "analyst")),
 ):
     """Get recent audit events for the dashboard."""
     events = list(db["audit_logs"].find().sort("created_at", -1).limit(8))
@@ -460,3 +521,72 @@ async def get_ioc_summary(
             reverse=True
         )[:5],
     }
+
+@router.get("/executive-summary")
+async def get_executive_summary(
+    db: Database = Depends(get_db),
+):
+
+    malware_count = db["scans"].count_documents(
+        {
+            "scan_type": "malware",
+            "verdict": {
+                "$in": ["Malicious", "Suspicious"]
+            }
+        }
+    )
+
+    phishing_count = db["scans"].count_documents(
+        {
+            "scan_type": "phishing"
+        }
+    )
+
+    critical_cves = db["cve_records"].count_documents(
+        {
+            "severity": "Critical"
+        }
+    )
+
+    attack_chains = 1 if (
+        malware_count > 0 and
+        phishing_count > 0 and
+        critical_cves > 0
+    ) else 0
+
+    # Dynamic recommendation
+    if critical_cves > 20:
+        recommendation = (
+            "Immediate patching of critical vulnerabilities is required."
+        )
+
+    elif malware_count > 20:
+        recommendation = (
+            "Elevated malware activity detected. Review recent malware events."
+        )
+
+    elif phishing_count > 10:
+        recommendation = (
+            "Increase phishing monitoring and user awareness training."
+        )
+
+    else:
+        recommendation = (
+            "Security posture is stable. Continue monitoring."
+        )
+
+    summary = {
+        "posture": (
+            "High Risk"
+            if critical_cves > 5
+            else "Moderate Risk"
+        ),
+
+        "malware_count": malware_count,
+        "phishing_count": phishing_count,
+        "critical_cves": critical_cves,
+        "attack_chains": attack_chains,
+        "recommendation": recommendation,
+    }
+
+    return summary
