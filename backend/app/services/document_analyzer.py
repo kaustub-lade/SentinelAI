@@ -40,10 +40,7 @@ def analyze_document(content: bytes):
         len(detected) * 0.15,
         1.0
     )
-    print("\nDOCUMENT ANALYSIS:")
-    print("URLs:", len(urls))
-    print("Keywords:", detected)
-    print()
+
 
     return {
         "document_type": "document",

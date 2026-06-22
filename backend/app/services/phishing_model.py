@@ -134,11 +134,6 @@ class PhishingModelService:
         recall = recall_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
 
-        print(f"Accuracy : {accuracy:.4f}")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall   : {recall:.4f}")
-        print(f"F1 Score : {f1:.4f}")
-
         metrics = {
             "accuracy": round(float(accuracy), 4),
             "precision": round(float(precision), 4),
@@ -153,7 +148,6 @@ class PhishingModelService:
         with open(metrics_path, "w") as f:
             json.dump(metrics, f, indent=4)
 
-        print(f"Metrics saved to {metrics_path}")
 
         joblib.dump(model, self.model_path)
         self.model = model

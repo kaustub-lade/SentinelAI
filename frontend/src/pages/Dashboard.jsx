@@ -126,14 +126,6 @@ export default function Dashboard() {
   setExecutiveSummary(
     executiveSummaryRes.data
   )
-  console.log(
-  "Executive Summary Response:",
-  executiveSummaryRes.data
-)
-console.log(
-  "Alert Trend:",
-  alertTrendRes.data.trend
-)
 
   } catch (error) {
     console.error(
@@ -164,6 +156,43 @@ console.log(
       setExporting(false)
     }
   }
+
+  const downloadExecutivePDF = async () => {
+
+      try {
+
+        const response =
+          await reportsAPI.downloadExecutivePDF()
+
+        const blob =
+          new Blob(
+            [response.data],
+            {
+              type: "application/pdf"
+            }
+          )
+
+        const url =
+          window.URL.createObjectURL(blob)
+
+        const link =
+          document.createElement("a")
+
+        link.href = url
+
+        link.download =
+          "sentinelai-executive-report.pdf"
+
+        link.click()
+
+        window.URL.revokeObjectURL(url)
+
+      } catch (err) {
+
+        console.error(err)
+
+      }
+    }
 
   const StatCard = ({ icon: Icon, title, value, trend, color }) => (
     <div className="card p-6">
@@ -251,6 +280,12 @@ console.log(
             >
               <Download className="w-4 h-4" />
               {exporting ? 'Exporting...' : 'Download Reports'}
+            </button>
+            <button
+              onClick={downloadExecutivePDF}
+              className="px-4 py-3 bg-green-600 hover:bg-green-500 rounded-lg text-white font-medium"
+            >
+              Executive PDF
             </button>
         </div>
       </div>

@@ -2,7 +2,6 @@ import axios from 'axios'
 
 // Production default points to Render backend if VITE_API_URL is not provided.
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sentinelai-3glx.onrender.com'
-console.log("API URL:", API_BASE_URL)
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   headers: {
@@ -51,6 +50,13 @@ export const reportsAPI = {
   api.get(`/reports/malware-pdf/${scanId}`, {
     responseType: 'blob',
   }),
+  downloadExecutivePDF: () =>
+  api.get(
+    "/reports/executive-pdf",
+    {
+      responseType: "blob",
+    }
+  ),
 }
 
 // Malware API

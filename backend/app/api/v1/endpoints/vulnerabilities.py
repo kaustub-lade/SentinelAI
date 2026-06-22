@@ -99,15 +99,8 @@ async def _fetch_cves_from_nvd(limit: int, db: Database, user_id: str | None = N
             headers=headers,
         )
     
-    print("NVD API KEY:", settings.NVD_API_KEY)
 
     if response.status_code != 200:
-        print("=" * 50)
-        print("NVD STATUS:", response.status_code)
-        print("NVD URL:", response.url)
-        print("NVD RESPONSE:")
-        print(response.text)
-        print("=" * 50)
 
         raise HTTPException(
             status_code=502,

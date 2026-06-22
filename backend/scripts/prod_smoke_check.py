@@ -111,12 +111,8 @@ def main() -> int:
 
     try:
         result = run_smoke_checks(args.backend_url, args.timeout)
-        print("SMOKE CHECK PASSED")
-        for item in result["checks"]:
-            print(f"- {item['name']}: {item['status']}")
         return 0
     except Exception as exc:
-        print(f"SMOKE CHECK FAILED: {exc}")
         return 1
 
 

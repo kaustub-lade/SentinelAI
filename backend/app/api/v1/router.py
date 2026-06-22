@@ -1,7 +1,3 @@
-"""
-Main API Router - Includes all endpoint routers
-"""
-
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
@@ -13,7 +9,8 @@ from app.api.v1.endpoints import (
     reports,
     auth,
     correlation,
-    cloud
+    cloud,
+    executive_report
 )
 
 api_router = APIRouter()
@@ -28,3 +25,4 @@ api_router.include_router(security_assistant.router, prefix="/assistant", tags=[
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(correlation.router, prefix="/correlation", tags=["Correlation"])
 api_router.include_router(cloud.router,prefix="/cloud",tags=["Cloud Security"])
+api_router.include_router(executive_report.router, prefix="/reports", tags=["Executive Report"])

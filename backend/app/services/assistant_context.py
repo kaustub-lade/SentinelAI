@@ -78,8 +78,6 @@ def build_security_response(message: str, db: Database) -> tuple[str, list[str]]
         cve = db["cve_records"].find_one({
             "cve_id": cve_id
         })
-        print("MATCHED CVE:", cve_id)
-        print("FOUND:", cve)
 
         if cve:
             response = f"""{cve_id}

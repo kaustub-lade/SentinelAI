@@ -65,7 +65,6 @@ def on_startup():
         )
 
 # CORS configuration
-print("ALLOWED_ORIGINS =", settings.allowed_origins)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
