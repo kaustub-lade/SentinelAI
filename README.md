@@ -18,13 +18,23 @@ Modern organizations face an overwhelming volume of security alerts and complex 
 *   To deliver executive-level reporting through automated PDF generation.
 
 ## 4. Key Features
-*   **AI-Powered Detection:** Heuristic and machine learning scaffolding for phishing and malware analysis.
+*   **AI-Powered Detection:** Heuristic and machine learning for phishing and malware analysis.
 *   **Vulnerability Intelligence:** Automated CVE prioritization to focus on critical risks.
 *   **Security Assistant:** An integrated AI UI for security-related queries and assistance.
 *   **Enterprise Security:** Role-Based Access Control (RBAC), audit logging, and JWT authentication with refresh tokens.
-*   **Observability:** Integrated security and observability scaffolding using Docker Compose.
+*   **Observability:** Integrated security and observability using Docker Compose.
 
-## 5. System Architecture Overview
+## 5. Highlights
+
+- AI-powered malware analysis
+- NLP-based phishing detection
+- CVE prioritization and risk scoring
+- MITRE ATT&CK mapping
+- Cloud security posture monitoring
+- Executive PDF reporting
+- AI Security Assistant powered by Groq
+
+## 6. System Architecture Overview
 The platform follows a modern microservices-inspired architecture:
 *   **Frontend:** A responsive UI built with React, Vite, and Tailwind CSS.
 *   **Backend:** High-performance API powered by FastAPI (Python).
@@ -32,26 +42,26 @@ The platform follows a modern microservices-inspired architecture:
 *   **Task Management:** Celery and Redis for handling asynchronous security tasks and queues.
 *   **AI Engine:** Integration with Groq for production-grade LLM capabilities.
 
-## 6. Technology Stack
+## 7. Technology Stack
 *   **Languages:** Python (40.7%), JavaScript (23.1%), Jupyter Notebooks (34.7%).
 *   **Frameworks:** FastAPI, React.
 *   **Database:** MongoDB Atlas.
 *   **DevOps & Infrastructure:** Docker, Docker Compose, Vercel (Frontend), Render (Backend).
 *   **AI/ML:** Groq LLM, YARA, Pydantic.
 
-## 7. Module Descriptions
-*   **Malware Detection:** Utilizes static feature analysis and YARA hooks supported by model scaffolding for binary and file analysis.
-*   **Phishing Detection:** Employs a combination of heuristic rules and machine learning scaffolding to identify malicious URLs and communications.
+## 8. Module Descriptions
+*   **Malware Detection:** Utilizes static feature analysis and YARA hooks supported by model for binary and file analysis.
+*   **Phishing Detection:** Employs a combination of heuristic rules and machine learning to identify malicious URLs and communications.
 *   **Vulnerability Intelligence:** Aggregates CVE data and provides prioritization intelligence to help teams patch critical flaws first.
-*   **MITRE ATT&CK Mapping:** Includes scaffolding to map identified threats to specific tactics and techniques within the MITRE ATT&CK matrix.
+*   **MITRE ATT&CK Mapping:** Includes map identified threats to specific tactics and techniques within the MITRE ATT&CK matrix.
 *   **IOC Intelligence:** (Handled through the threat detection modules for identifying Indicators of Compromise).
 *   **Threat Correlation Engine:** Integrated within the backend to link various security events (implied by platform scope).
 *   **Security Assistant:** A specialized UI component that allows users to interact with an AI trained for security contexts.
-*   **Cloud Security Monitoring:** Supported by dedicated security and observability scaffolding for cloud-native environments.
+*   **Cloud Security Monitoring:** Supported by dedicated security and observability for cloud-native environments.
 *   **Alert Management:** Features rate limiting and audit logging to manage and track security alerts efficiently.
 *   **Executive Reporting:** Includes functionality for automated "Executive PDF" creation for high-level stakeholders.
 
-## 8. Folder Structure
+## 9. Folder Structure
 ```text
 SentinelAI/
 ├── .github/workflows/    # CI/CD pipelines
@@ -63,7 +73,7 @@ SentinelAI/
 └── README.md             # Project documentation
 ```
 
-## 9. Installation Instructions
+## 10. Installation Instructions
 ### Prerequisites
 *   Python 3.x
 *   Node.js & npm
@@ -82,36 +92,68 @@ SentinelAI/
 4.  **Local Scripts:**
     *   Windows users can use `start-all.bat`, `start-backend.bat`, or `start-frontend.bat` for quick startup.
 
-## 10. API Overview
+## 11. API Overview
 SentinelAI provides a fully documented REST API:
 *   **API Documentation:** Accessible via `/docs` (Swagger UI) when the backend is running.
 *   **Base URL:** `https://sentinelai-3glx.onrender.com/docs`.
 *   **Key Endpoints:** Includes authentication, threat analysis, and vulnerability reporting.
 
-## 11. Dashboard Features
+## 12. Dashboard Features
 *   **Real-time Threat Monitoring:** Visualizing active malware and phishing threats.
 *   **Vulnerability Priority List:** A ranked view of CVEs affecting the environment.
 *   **Interactive AI Chat:** The Security Assistant interface for direct query handling.
 
-## 12. Security Features
+## 13. Security Features
 *   **Authentication:** JWT with refresh token rotation.
 *   **Authorization:** Role-Based Access Control (RBAC) and role checks.
 *   **Infrastructure Security:** Atlas TLS hardening and secure production LLM configurations.
 *   **Accountability:** Full audit logging for user and system actions.
 
-## 13. Screenshots Section
-*(Placeholders for future UI documentation)*
-*   **Dashboard Overview:** `[Insert Dashboard Screenshot Here]`
-*   **Threat Analysis:** `[Insert Malware/Phishing Analysis Screenshot Here]`
-*   **AI Assistant:** `[Insert Security Assistant UI Screenshot Here]`
+## 14. Screenshots Section
+### Security Dashboard
+![Dashboard](screenshots/dashboard.png)
 
-## 14. Future Scope
-*   Expansion of MITRE ATT&CK mapping from scaffolding to full automation.
+### AI Malware Detection
+![Malware Analysis](screenshots/malware_analysis_result.png)
+
+### Phishing Detection
+![Phishing Detection](screenshots/phishing_analysis.png)
+![Phishing Result](screenshots/phishing_analysis_result.png)
+
+### Vulnerability Intelligence
+![Vulnerability Intelligence](screenshots/vulnerability_analysis.png)
+
+### Cloud Security Posture
+![Cloud Security](screenshots/cloud_security.png)
+
+### AI Security Assistant
+![AI Assistant](screenshots/ai_assistant.png)
+
+## Live Demo
+
+Frontend: https://sentinel-ai-flame.vercel.app/login
+
+API Documentation:
+https://sentinelai-3glx.onrender.com/docs
+
+## Demo Credentials
+
+Use the following demo account to explore the platform:
+
+```text
+Email: demo@sentinelai.com
+Password: Demo@123
+```
+
+> Note: This is a demonstration account with limited privileges and sample security data.
+
+## 15. Future Scope
+*   Expansion of MITRE ATT&CK mapping to full automation.
 *   Enhanced model training for more granular malware classification.
 *   Extended cloud security integrations as noted in the project roadmap (`TODO.md`).
 
-## 15. Authors
+## 16. Authors
 *   **Kaustub Lade** - *Lead Developer*
 
-## 16. License
+## 17. License
 This project is part of a professional portfolio and engineering submission. Please refer to the repository for specific licensing details (e.g., MIT/Apache).
