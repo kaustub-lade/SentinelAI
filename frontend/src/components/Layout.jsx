@@ -16,8 +16,8 @@ export default function Layout({ setIsAuthenticated }) {
     { path: '/malware', icon: Bug, label: 'Malware Analysis' },
     { path: '/phishing', icon: Mail, label: 'Phishing Detection' },
     { path: '/vulnerabilities', icon: AlertTriangle, label: 'Vulnerabilities' },
-    { path: '/assistant', icon: MessageSquare, label: 'AI Assistant' },
     { path: '/cloud-security', icon: Cloud, label: 'Cloud Security' },
+    { path: '/assistant', icon: MessageSquare, label: 'AI Assistant' },
   ]
 
   return (
