@@ -20,12 +20,25 @@ export default function PhishingDetection() {
 
   const handleAnalyze = async () => {
     setAnalyzing(true)
+
     try {
       const response = await phishingAPI.checkEmail(emailData)
+
+      console.log("========== PHISHING RESPONSE ==========")
+      console.log(response.data)
+      console.log("======================================")
+
       setResult(response.data)
+
     } catch (error) {
-      console.error('Error analyzing email:', error)
-      alert('Error analyzing email. Please try again.')
+      console.error("Error analyzing email:", error)
+
+      if (error.response) {
+        console.log("Backend Error Response:")
+        console.log(error.response.data)
+      }
+
+      alert("Error analyzing email. Please try again.")
     } finally {
       setAnalyzing(false)
     }
@@ -166,7 +179,7 @@ export default function PhishingDetection() {
           </div>
 
           {/* Detected Indicators */}
-          {result.detected_indicators.length > 0 && (
+          {result.detected_indicators?.length > 0 && (
             <div className="card p-6">
               <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-orange-400" />
@@ -185,24 +198,93 @@ export default function PhishingDetection() {
 
           {/* Analysis Details */}
           <div className="card p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Analysis Details</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(result.analysis).map(([key, value]) => (
-                <div key={key} className="p-4 bg-slate-700 rounded-lg">
-                  <p className="text-slate-400 text-sm capitalize">{key.replace(/_/g, ' ')}</p>
-                  <p className="text-white text-lg font-bold mt-1">
-                    {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}
-                  </p>
-                </div>
-              ))}
+            <h3 className="text-xl font-bold text-white mb-4">
+              Analysis Details
+            </h3>
+
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-slate-700 rounded-lg">
+                <p className="text-slate-400">Model</p>
+                <p className="text-white font-bold">
+                  {result.analysis?.model || "Unknown"}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-700 rounded-lg">
+                <p className="text-slate-400">Version</p>
+                <p className="text-white font-bold">
+                  {result.analysis?.model_version || "N/A"}
+                </p>
+              </div>
             </div>
+
+            {/* Features */}
+            <h4 className="text-lg font-semibold text-white mb-3">
+              Extracted Features
+            </h4>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+              {Object.entries(result.analysis.features || {}).map(
+                ([key, value]) => (
+                  <div
+                    key={key}
+                    className="p-3 bg-slate-700 rounded-lg"
+                  >
+                    <p className="text-slate-400 text-sm">
+                      {key.replace(/_/g, " ")}
+                    </p>
+
+                    <p className="text-white font-bold">
+                      {typeof value === "boolean"
+                        ? value
+                          ? "Yes"
+                          : "No"
+                        : value}
+                    </p>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Top Factors */}
+            {result.analysis.top_factors?.length > 0 && (
+              <>
+                <h4 className="text-lg font-semibold text-white mb-3">
+                  Top Risk Factors
+                </h4>
+
+                <div className="space-y-3">
+                  {result.analysis.top_factors.map((factor, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-slate-700 rounded-lg"
+                    >
+                      <div className="flex justify-between">
+                        <span className="text-white font-medium">
+                          {factor.feature}
+                        </span>
+
+                        <span className="text-orange-400">
+                          Impact: {factor.impact}
+                        </span>
+                      </div>
+
+                      <div className="text-sm text-slate-400 mt-1">
+                        Value: {factor.value} | Weight: {factor.weight}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Recommendations */}
           <div className="card p-6">
             <h3 className="text-xl font-bold text-white mb-4">Recommendations</h3>
             <ul className="space-y-2">
-              {result.recommendations.map((rec, index) => (
+              {result.recommendations?.map((rec, index) => (
                 <li key={index} className="flex items-start gap-2">
                   <span className={`mt-1 ${result.is_phishing ? 'text-red-400' : 'text-green-400'}`}>
                     {result.is_phishing ? '⚠' : '✓'}
