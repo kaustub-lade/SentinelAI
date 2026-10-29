@@ -1,4 +1,4 @@
-# SentinelAI: Autonomous Cyber Defense Platform
+﻿# SentinelAI: Autonomous Cyber Defense Platform
 
 **SentinelAI** is a professional-grade, AI-powered cybersecurity platform designed for autonomous threat detection, phishing analysis, and vulnerability prioritization. Built to streamline security operations, it integrates machine learning models with industry-standard frameworks like MITRE ATT&CK to provide a unified defense interface.
 
@@ -47,10 +47,10 @@ The platform follows a modern microservices-inspired architecture:
 *   **Frameworks:** FastAPI, React.
 *   **Database:** MongoDB Atlas.
 *   **DevOps & Infrastructure:** Docker, Docker Compose, Vercel (Frontend), Render (Backend).
-*   **AI/ML:** Groq LLM, YARA, Pydantic.
+*   **AI/ML:** Groq LLM, LightGBM (EMBER-2018), YARA, Pydantic.
 
 ## 8. Module Descriptions
-*   **Malware Detection:** Utilizes static feature analysis and YARA hooks supported by model for binary and file analysis.
+*   **Malware Detection:** Static PE feature extraction with a LightGBM model trained on the EMBER-2018 benchmark, plus YARA hooks and heuristic fallbacks for non-PE files.
 *   **Phishing Detection:** Employs a combination of heuristic rules and machine learning to identify malicious URLs and communications.
 *   **Vulnerability Intelligence:** Aggregates CVE data and provides prioritization intelligence to help teams patch critical flaws first.
 *   **MITRE ATT&CK Mapping:** Includes map identified threats to specific tactics and techniques within the MITRE ATT&CK matrix.
@@ -64,13 +64,13 @@ The platform follows a modern microservices-inspired architecture:
 ## 9. Folder Structure
 ```text
 SentinelAI/
-├── .github/workflows/    # CI/CD pipelines
-├── backend/              # FastAPI source code, models, and API logic
-├── frontend/             # React source code and UI components
-├── ember-master/         # Additional project modules
-├── docker-compose.yml    # Orchestration for local development
-├── DEPLOYMENT.md         # Production configuration guides
-└── README.md             # Project documentation
+â”œâ”€â”€ .github/workflows/    # CI/CD pipelines
+â”œâ”€â”€ backend/              # FastAPI source code, models, and API logic
+â”œâ”€â”€ frontend/             # React source code and UI components
+â”œâ”€â”€ ember-master/         # Additional project modules
+â”œâ”€â”€ docker-compose.yml    # Orchestration for local development
+â”œâ”€â”€ DEPLOYMENT.md         # Production configuration guides
+â””â”€â”€ README.md             # Project documentation
 ```
 
 ## 10. Installation Instructions
@@ -109,7 +109,80 @@ SentinelAI provides a fully documented REST API:
 *   **Infrastructure Security:** Atlas TLS hardening and secure production LLM configurations.
 *   **Accountability:** Full audit logging for user and system actions.
 
-## 14. Screenshots Section
+## 14. Machine Learning: EMBER-2018 Malware Detection
+
+Malware scoring is driven by a LightGBM classifier trained on the
+[EMBER-2018 dataset](https://github.com/elastic/ember), the Elastic Malware
+Benchmark for Empowering Researchers. This replaces the previous hand-written
+heuristic demo data with real, benchmark-derived telemetry.
+
+### Dataset
+
+| Property | Value |
+| --- | --- |
+| Archive | `ember_dataset_2018_2.tar.bz2` (1,696,539,273 bytes) |
+| SHA-256 | `b6052eb8d350a49a8d5a5396fbe7d16cf42848b86ff969b77464434cf2997812` |
+| Feature version | 2 (2381 features per PE file) |
+| Training pool | 120,000 sampled samples (46,081 malicious) from `train_features_0/1.jsonl` |
+| Evaluation set | 30,000 sampled samples (14,993 malicious) from `test_features.jsonl` |
+
+The EMBER-2018 archive ships raw JSONL features rather than pre-vectorized
+matrices, so `backend/scripts/vectorize_ember_jsonl.py` streams the shards and
+re-vectorizes them with a vendored copy of the official feature extractor
+(`backend/app/services/ember_features.py`, LIEF-based, AGPL-free import path).
+
+### Model
+
+* **Algorithm:** LightGBM (`num_leaves=64`, 395 trees after early stopping)
+* **Artifact:** `backend/app/ml/ember_model.txt` (2.93 MB, plain text, loaded by
+  `backend/app/services/ember_model.py`)
+* **Scoring path:** static PE features â†’ EMBER vector â†’ `predict_proba`;
+  non-PE uploads fall back to the existing heuristic analyzer.
+
+Measured on the official EMBER-2018 test split (unseen during training):
+
+| Metric | Value |
+| --- | --- |
+| ROC-AUC | 0.9822 |
+| Accuracy | 0.9359 |
+| Precision | 0.9628 |
+| Recall | 0.9068 |
+| F1 | 0.9339 |
+
+Full numbers are stored in `backend/app/ml/ember_metrics.json`. Every analysis
+response reports `engine: "ember-lightgbm-v2"`, which the UI renders as
+*Detection engine: EMBER-2018 LightGBM*. A probability of 0.9 or higher is
+reported as **Malicious / High**.
+
+### Benchmark labelling
+
+Dashboard records produced from EMBER are written with `source: "ember"` and
+`dataset: "EMBER-2018"`, and the recent-threats table renders an indigo
+`EMBER-2018` badge next to them, so benchmark samples are never presented as
+live customer telemetry. The seeded demo rows were removed.
+
+### Reproducing the model
+
+```bash
+# 1. Vectorize raw EMBER JSONL features into memmapped pools
+python backend/scripts/vectorize_ember_jsonl.py \
+  --shards /data/ember2018/train_features_1.jsonl /data/ember2018/train_features_0.jsonl \
+  --limit 120000 --out-dir /data/pool_train
+
+python backend/scripts/vectorize_ember_jsonl.py \
+  --shards /data/ember2018/test_features.jsonl \
+  --limit 30000 --out-dir /data/pool_test
+
+# 2. Train + evaluate, writing the model, metrics and dashboard holdout
+python backend/scripts/train_ember_model.py \
+  --pool-dir /data/pool_train --test-pool-dir /data/pool_test \
+  --trees 400 --leaves 64 --holdout 400
+
+# 3. Load EMBER-derived records into MongoDB
+python backend/scripts/backfill_ember_dashboard.py --db sentinalai
+```
+
+## 15. Screenshots Section
 ### Security Dashboard
 ![Dashboard](screenshots/dashboard.png)
 
@@ -147,13 +220,13 @@ Password: Demo@123
 
 > Note: This is a demonstration account with limited privileges and sample security data.
 
-## 15. Future Scope
+## 16. Future Scope
 *   Expansion of MITRE ATT&CK mapping to full automation.
-*   Enhanced model training for more granular malware classification.
+*   Periodic retraining of the EMBER model on newer benchmark releases for broader malware-family coverage.
 *   Extended cloud security integrations as noted in the project roadmap (`TODO.md`).
 
-## 16. Authors
+## 17. Authors
 *   **Kaustub Lade** - *Lead Developer*
 
-## 17. License
+## 18. License
 This project is part of a professional portfolio and engineering submission. Please refer to the repository for specific licensing details (e.g., MIT/Apache).

@@ -840,7 +840,17 @@ export default function Dashboard() {
             <tbody>
               {threats.map((threat) => (
                 <tr key={threat.id} className="border-b border-slate-700 hover:bg-slate-700/50">
-                  <td className="py-3 px-4 text-white font-medium">{threat.type}</td>
+                  <td className="py-3 px-4 text-white font-medium">
+                    {threat.type}
+                    {threat.data_source && (
+                      <span
+                        className="ml-2 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                        title="Benchmark data, not live telemetry"
+                      >
+                        {threat.data_source}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3 px-4">
                     <span className={getSeverityBadge(threat.severity)}>
                       {threat.severity}

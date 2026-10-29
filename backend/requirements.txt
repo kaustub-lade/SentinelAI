@@ -15,6 +15,9 @@ reportlab==4.5.1
 openai==1.10.0
 scikit-learn==1.8.0
 joblib==1.4.2
+# EMBER-2018 malware classifier (LightGBM) + PE feature extraction
+lightgbm==4.5.0
+lief==0.12.3
 
 # Security & API Integration
 requests==2.31.0
@@ -28,8 +31,8 @@ fastapi-cors==0.0.6
 celery==5.3.1
 redis==4.6.0
 
-# YARA rules engine (requires libyara on host/container)
-yara-python==4.2.0
+# YARA rules engine (4.4.0+ ships manylinux wheels; 4.2.0 has to compile from source)
+yara-python==4.5.4
 
 # PE parsing and testing
 pefile==2024.8.26

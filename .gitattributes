@@ -1,0 +1,6 @@
+# The LightGBM model is a text file whose parser rejects CRLF line endings,
+# so keep it byte-identical on every checkout.
+backend/app/ml/ember_model.txt text eol=lf
+
+# Keep benchmark artifacts byte-stable as well.
+backend/app/ml/*.jsonl -text

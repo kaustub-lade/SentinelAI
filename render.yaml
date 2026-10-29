@@ -5,22 +5,28 @@ services:
     region: oregon
     dockerfilePath: backend/Dockerfile
     dockerContext: .
+    healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-120b
       - key: VIRUSTOTAL_API_KEY
+        sync: false
+      - key: NVD_API_KEY
         sync: false
       - key: ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 30
+      - key: ENVIRONMENT
+        value: production
       - key: MONGODB_URL
         sync: false
       - key: MONGODB_DB_NAME
-        value: sentinelai
+        # Matches the database the live Render service already uses.
+        value: sentinalai
       - key: ALLOWED_ORIGINS
         value: https://sentinel-ai-flame.vercel.app

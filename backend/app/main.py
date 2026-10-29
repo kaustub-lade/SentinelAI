@@ -64,6 +64,21 @@ def on_startup():
             "may return 503 until MongoDB is reachable."
         )
 
+    # Load the EMBER-2018 model once so the first upload isn't slow, and log
+    # which detection engine is active.
+    try:
+        from app.services import ember_model
+
+        if ember_model.available():
+            logger.info("Malware detection engine: EMBER-2018 LightGBM")
+        else:
+            logger.warning(
+                "EMBER model not found at %s; falling back to legacy heuristics",
+                ember_model.model_path(),
+            )
+    except Exception as exc:  # never block startup on the ML path
+        logger.warning("EMBER model warmup failed: %s", exc)
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,

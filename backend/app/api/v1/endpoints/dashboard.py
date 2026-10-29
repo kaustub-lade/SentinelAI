@@ -71,6 +71,11 @@ async def get_dashboard_stats(
     )
 
     # Dynamic risk score
+    #
+    # Every detection on the dashboard feeds the score, including EMBER-2018
+    # benchmark rows, so the number stays consistent with the tiles above it.
+    # Benchmark rows are identified separately by their `source` field (see the
+    # "EMBER-2018" badge on the recent-threats table).
     risk_score = 0
 
     risk_score += min(
@@ -152,12 +157,24 @@ async def get_recent_threats(
         else:
             severity = "Low"
 
+        # Records produced by the EMBER backfill are labelled so benchmark
+        # data is never mistaken for live telemetry.
+        data_source = scan.get("dataset") if scan.get("source") == "ember" else None
+        file_name = scan.get("file_name")
+        family = scan.get("ember_family")
+
+        description = f"{threat_type} analysis completed"
+        if file_name:
+            description = f"{threat_type} analysis: {file_name}"
+        if family:
+            description = f"{threat_type} analysis: {file_name or 'sample'} ({family})"
+
         threats.append(
             {
                 "id": str(scan.get("_id")),
                 "type": threat_type,
                 "severity": severity,
-                "description": f"{threat_type} analysis completed",
+                "description": description,
                 "source_ip": "N/A",
                 "timestamp": (
                     created_at.isoformat()
@@ -169,6 +186,7 @@ async def get_recent_threats(
                     if severity in ["Critical", "High"]
                     else "Allowed"
                 ),
+                "data_source": data_source,
             }
         )
 

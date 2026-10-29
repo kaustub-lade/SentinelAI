@@ -1,0 +1,22 @@
+{
+  "threshold": 0.5,
+  "accuracy": 0.9359,
+  "precision": 0.9628,
+  "recall": 0.9068,
+  "f1_score": 0.9339,
+  "roc_auc": 0.9822,
+  "true_positive": 13595,
+  "false_positive": 525,
+  "true_negative": 14482,
+  "false_negative": 1398,
+  "dataset": "EMBER-2018 (ember_dataset_2018_2)",
+  "model": "lightgbm",
+  "feature_version": 2,
+  "feature_count": 2381,
+  "trees": 395,
+  "train_samples": 120000,
+  "test_samples": 30000,
+  "malicious_share_test": 0.4998,
+  "holdout_split": "test",
+  "holdout_samples": 400
+}
