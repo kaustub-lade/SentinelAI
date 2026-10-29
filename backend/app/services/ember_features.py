@@ -156,17 +156,17 @@ class SectionInfo(FeatureType):
             if int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 12):
                 section = lief_binary.section_from_rva(lief_binary.entrypoint - lief_binary.imagebase)
                 if section is None:
-                    raise lief.not_found
+                    raise LookupError("entry section not found")
                 entry_section = section.name
             else: # lief < 0.12
                 entry_section = lief_binary.section_from_offset(lief_binary.entrypoint).name
-        except lief.not_found:
-                # bad entry point, let's find the first executable section
-                entry_section = ""
-                for s in lief_binary.sections:
-                    if lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE in s.characteristics_lists:
-                        entry_section = s.name
-                        break
+        except (LookupError, AttributeError):
+            # bad entry point, let's find the first executable section
+            entry_section = ""
+            for s in lief_binary.sections:
+                if lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE in s.characteristics_lists:
+                    entry_section = s.name
+                    break
 
         raw_obj = {"entry": entry_section}
         raw_obj["sections"] = [{
@@ -545,8 +545,12 @@ class PEFeatureExtractor(object):
         self.dim = sum([fe.dim for fe in self.features])
 
     def raw_features(self, bytez):
-        lief_errors = (lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound,
-                       RuntimeError)
+        legacy_lief_errors = (
+            getattr(lief, name)
+            for name in ("bad_format", "bad_file", "pe_error", "parser_error", "read_out_of_bound")
+            if isinstance(getattr(lief, name, None), type)
+        )
+        lief_errors = tuple(legacy_lief_errors) + (RuntimeError,)
         try:
             lief_binary = lief.PE.parse(list(bytez))
         except lief_errors as e:

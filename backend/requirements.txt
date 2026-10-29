@@ -17,7 +17,9 @@ scikit-learn==1.8.0
 joblib==1.4.2
 # EMBER-2018 malware classifier (LightGBM) + PE feature extraction
 lightgbm==4.5.0
-lief==0.12.3
+# 0.17.6 provides Linux wheels for Python 3.14; older releases fall back to
+# a source build that fails during Render dependency installation.
+lief==0.17.6
 
 # Security & API Integration
 requests==2.31.0
